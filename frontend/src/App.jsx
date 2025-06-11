@@ -12,11 +12,16 @@ import LevelTestPage from "./pages/LevelTestPage";
 import CourseOverviewPage from "./pages/CourseOverviewPage";
 import PairProjectsPage from "./pages/PairProjectsPage";
 import JobBoardPage from "./pages/JobBoardPage";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/auth/login" element={<LoginPage/>}/>
+        <Route path="/auth/signup" element={<SignupPage/>}/>
+        
         <Route path="/" element={<MainLayout />}>
           <Route index path="/home" element={<HomePage />} />
           <Route path="/learn/courses" element={<CourseCatalogPage />} />
