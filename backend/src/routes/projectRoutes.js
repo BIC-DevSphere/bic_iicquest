@@ -8,7 +8,9 @@ import {
   getProjectsByTechnology,
   getUserProjects,
   updateProjectStatus,
-  applyForProject
+  applyForProject,
+  getProjectApplications,
+  updateApplicationStatus
 } from '../controllers/projectController.js';
 import { auth } from '../middleware/auth.js';
 
@@ -26,6 +28,10 @@ router.put('/:id', updateProject);
 router.post('/:id/apply', applyForRole);
 router.get('/user/projects', getUserProjects);
 router.post('/user/projects/apply/:id', applyForProject);
-router.patch('/:id/status', updateProjectStatus);
+router.put('/:id/status', updateProjectStatus);
+
+// Project applications routes
+router.get('/:id/applications', getProjectApplications);
+router.put('/:projectId/applications/:applicationId/status', updateApplicationStatus);
 
 export default router; 

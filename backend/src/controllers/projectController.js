@@ -100,6 +100,11 @@ export const applyForRole = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
+    // Check if user is the project creator (owner)
+    if (project.creator.toString() === req.user.id) {
+      return res.status(400).json({ message: 'You cannot apply to your own project' });
+    }
+
     const role = project.roles.id(roleId);
     if (!role) {
       return res.status(404).json({ message: 'Role not found' });
@@ -235,34 +240,42 @@ export const updateProjectStatus = async (req, res) => {
 
 export const applyForProject = async (req, res) => {
   try {
-    console.log(req.user);
     const userId = req.user.id;
     const projectId = req.params.id;
-    const requiredSkills = ['nodejs', 'flutter'];
-    // const skills = ['nodejs', 'flutter'];
-    const skills = req.user.earnedTechnologies;
-
-    let isSkilled = false
-
-    for(let i = 0; i < requiredSkills.length; i++) {
-      if(skills.includes(requiredSkills[i].name)) {
-        isSkilled = true;
-        continue;
-      }else{
-        isSkilled = false;
-      }
-    }
+    const { message } = req.body;
     
-    if(!isSkilled) return res.status(400).json({ message: 'Your don\'t have enough skills'});
-    
-    if(!projectId) return res.status(400).json({ message: 'Project ID is required' }); 
-    const foundProject = await Project.findById(req.params.id);
+    const foundProject = await Project.findById(projectId);
     if(!foundProject) return res.status(404).json({ message: 'Project not found' });
+
+    // Check if user is the project creator (owner)
+    if (foundProject.creator.toString() === userId) {
+      return res.status(400).json({ message: 'You cannot apply to your own project' });
+    }
+
+    // Check if user already applied
+    const existingApplication = foundProject.applications.find(
+      app => app.userId.toString() === userId
+    );
+    if (existingApplication) {
+      return res.status(400).json({ message: 'You have already applied to this project' });
+    }
+
+    // Check if user is already a collaborator
+    const isCollaborator = foundProject.collaborators.some(
+      collab => collab.user.toString() === userId
+    );
+    if (isCollaborator) {
+      return res.status(400).json({ message: 'You are already a collaborator on this project' });
+    }
+
+    // Get user's earned technologies
+    const user = await User.findById(userId);
+    const userTechnologies = user.earnedTechnologies.map(tech => ({ name: tech.name }));
 
     const application = {
       userId,
-      message,
-      technologies: skills,
+      message: message || '',
+      technologies: userTechnologies,
       status: 'pending'
     }
 
@@ -287,3 +300,76 @@ export const projectGroupChat = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 }
+
+// Get project applications (for project owner)
+export const getProjectApplications = async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const userId = req.user.id;
+    
+    const project = await Project.findById(projectId)
+      .populate('applications.userId', 'username fullName email earnedTechnologies')
+      .populate('creator', 'username fullName');
+    
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    // Check if user is the project creator
+    if (project.creator._id.toString() !== userId) {
+      return res.status(403).json({ message: 'Only project owner can view applications' });
+    }
+    
+    res.status(200).json({
+      projectTitle: project.title,
+      applications: project.applications
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Accept/Reject application
+export const updateApplicationStatus = async (req, res) => {
+  try {
+    const { projectId, applicationId } = req.params;
+    const { status } = req.body; // 'accepted' or 'rejected'
+    const userId = req.user.id;
+    
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    // Check if user is the project creator
+    if (project.creator.toString() !== userId) {
+      return res.status(403).json({ message: 'Only project owner can update applications' });
+    }
+    
+    const application = project.applications.id(applicationId);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+    
+    application.status = status;
+    
+    // If accepted, add user as collaborator
+    if (status === 'accepted') {
+      project.collaborators.push({
+        user: application.userId,
+        role: 'General Contributor'
+      });
+    }
+    
+    await project.save();
+    
+    const updatedProject = await Project.findById(projectId)
+      .populate('applications.userId', 'username fullName email')
+      .populate('creator', 'username fullName')
+      .populate('collaborators.user', 'username fullName');
+    
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

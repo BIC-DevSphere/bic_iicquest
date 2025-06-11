@@ -46,8 +46,11 @@ export const API_ENDPOINTS = {
     createProject: "/projects",
     updateProject: (id) => `/projects/${id}`,
     applyForRole: (id) => `/projects/${id}/apply`,
+    applyForProject: (id) => `/projects/user/projects/apply/${id}`,
     getUserProjects: "/projects/user/projects",
     updateProjectStatus: (id) => `/projects/${id}/status`,
+    getProjectApplications: (id) => `/projects/${id}/applications`,
+    updateApplicationStatus: (projectId, applicationId) => `/projects/${projectId}/applications/${applicationId}/status`,
 
     // User endpoints
     register: "/users/register",

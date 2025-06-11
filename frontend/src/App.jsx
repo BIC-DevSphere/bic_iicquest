@@ -10,6 +10,7 @@ import ChapterContents from "./pages/ChapterContents";
 import LevelContentPage from "./pages/LevelContentPage";
 import LevelTestPage from "./pages/LevelTestPage";
 import CourseOverviewPage from "./pages/CourseOverviewPage";
+import PairProjectsPage from "./pages/PairProjectsPage";
 
 const App = () => {
   return (
@@ -18,6 +19,7 @@ const App = () => {
         <Route path="/" element={<MainLayout />}>
           <Route index path="/home" element={<HomePage />} />
           <Route path="/learn/courses" element={<CourseCatalogPage />} />
+          <Route path="/pair-projects" element={<PairProjectsPage />} />
           <Route path="/community" element={<CommunityPage />} />
           
           {/* Course Learning Routes */}
