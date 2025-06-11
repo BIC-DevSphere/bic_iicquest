@@ -1,5 +1,12 @@
 import mongoose from 'mongoose';
 
+const skillsSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  proficiencyLevel: { type: String, enum: ['beginner', 'intermediate', 'advanced'], required: true },
+  description: { type: String, required: true },
+  skillAcquiredDate: { type: Date, default: Date.now }
+});
+
 const UserSchema = new mongoose.Schema({
   username: { 
     type: String, 
@@ -23,9 +30,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '' 
   },
-  skills: [{ 
-    type: String 
-  }],
+  skills: [skillsSchema],
   earnedTechnologies: [{
     name: {
       type: String,
