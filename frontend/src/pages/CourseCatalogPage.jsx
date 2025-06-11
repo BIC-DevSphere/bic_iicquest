@@ -89,8 +89,8 @@ const CourseCatalogPage = () => {
   const [viewMode, setViewMode] = useState("grid");
 
   return (
-    <div className="min-h-screen bg-blue-300">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-screen mt-10">
+      <div>
         {/* Header Section */}
 
         {/* Search and Filter Section */}
@@ -99,10 +99,10 @@ const CourseCatalogPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-5xl mx-auto">
+        <div className="">
           {/* Courses Section */}
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-white">Featured Courses</h2>
+            <h2 className="text-2xl font-bold">Featured Courses</h2>
             <div className="flex bg-white/20 rounded-full p-1">
               <button
                 onClick={() => setViewMode("grid")}
