@@ -232,3 +232,43 @@ export const updateProjectStatus = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 }; 
+
+export const applyForProject = async (req, res) => {
+  try {
+    console.log(req.user);
+    const userId = req.user.id;
+    const projectId = req.params.id;
+    const requiredSkills = ['nodejs', 'flutter'];
+    const skills = ['nodejs', 'flutter'];
+
+    let isSkilled = false
+
+    for(let i = 0; i < requiredSkills.length; i++) {
+      if(skills.includes(requiredSkills[i])) {
+        isSkilled = true;
+        continue;
+      }else{
+        isSkilled = false;
+      }
+    }
+    if(!isSkilled) return res.status(400).json({ message: 'Your skills are not enough'});
+    
+    if(!projectId) return res.status(400).json({ message: 'Project ID is required' }); 
+    const foundProject = await Project.findById(req.params.id);
+    if(!foundProject) return res.status(404).json({ message: 'Project not found' });
+
+    const application = {
+      userId,
+      message,
+      technologies: skills,
+      status: 'pending'
+    }
+
+    foundProject.applications.push(application);
+    await foundProject.save();
+
+    res.status(200).json({ message: 'Application submitted successfully' });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

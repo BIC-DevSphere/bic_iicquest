@@ -35,6 +35,33 @@ const RoleSchema = new mongoose.Schema({
   }
 });
 
+const applicationSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  technologies: [{
+    name: {
+      type: String,
+      required: true
+    }
+  }],
+  message: {
+    type: String,
+    required: false
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending'
+  },
+  appliedAt: {
+    type: Date,
+    default: Date.now
+  },
+})
+
 const ProjectSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -47,11 +74,6 @@ const ProjectSchema = new mongoose.Schema({
   technologies: [{
     name: {
       type: String,
-      required: true
-    },
-    minimumProficiency: {
-      type: String,
-      enum: ['beginner', 'intermediate', 'advanced'],
       required: true
     }
   }],
@@ -75,6 +97,11 @@ const ProjectSchema = new mongoose.Schema({
     type: String,
     enum: ['planning', 'in_progress', 'completed', 'abandoned'],
     default: 'planning'
+  },
+  applications: [applicationSchema],
+  totalCollaboratorRequired: {
+    type: Number,
+    default: 1
   },
   collaborators: [{
     user: {
