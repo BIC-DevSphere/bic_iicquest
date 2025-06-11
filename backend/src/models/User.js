@@ -1,29 +1,60 @@
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Please add a name'],
+const UserSchema = new mongoose.Schema({
+  username: { 
+    type: String, 
+    required: true,
+    unique: true 
   },
-  email: {
-    type: String,
-    required: [true, 'Please add an email'],
-    unique: true,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please add a valid email',
-    ],
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true 
   },
-  password: {
+  password: { 
+    type: String, 
+    required: true 
+  },
+  fullName: { 
+    type: String, 
+    required: true 
+  },
+  bio: { 
     type: String,
-    required: [true, 'Please add a password'],
-    minlength: 6,
-    select: false,
+    default: '' 
+  },
+  skills: [{ 
+    type: String 
+  }],
+  interests: [{ 
+    type: String 
+  }],
+  currentLearningGoals: [{
+    topic: { type: String },
+    targetDate: { type: Date }
+  }],
+  profilePicture: {
+    type: String,
+    default: null
+  },
+  isAvailableForCollaboration: {
+    type: Boolean,
+    default: true
   },
   createdAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-export default mongoose.model('User', userSchema); 
+// Update timestamp on save
+UserSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+export default mongoose.model('User', UserSchema); 
