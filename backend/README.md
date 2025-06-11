@@ -1,63 +1,226 @@
+# IIC Quest Backend API Documentation
 
+## Setup
 
-## App Context: **UpTogether**
+1. Install dependencies:
+```bash
+npm install
+```
 
-**Tagline**: *A platform to learn, build, and get hired together.*
+2. Create a .env file with the following variables:
+```
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+```
 
----
+3. Run the server:
+```bash
+# Development
+npm run dev
 
-### Problem Statement
+# Production
+npm start
+```
 
-Many learners face three key challenges early in their journey:
+## API Endpoints
 
-1. **Hesitation to Ask for Help**: Fear of judgment from seniors often stops them from asking questions.
-2. **Lack of Motivation and Consistency**: Self-paced learning often fails due to poor follow-through.
-3. **Minimal Real-World Exposure**: There's a gap between academic learning and industry-level project experience.
+### Courses
 
----
+#### Get All Courses
+- **GET** `/api/courses`
+- Returns all published courses
+- Public access
+- Response: Array of course objects
 
-### Proposed Solution
+#### Get Course by ID
+- **GET** `/api/courses/:id`
+- Returns a specific course by ID
+- Public access
+- Response: Course object
 
-A collaborative learning platform that offers:
+#### Search Courses
+- **GET** `/api/courses/search?query=keyword`
+- Search courses by title, description, or tags
+- Public access
+- Response: Array of matching course objects
 
-* **Solo or Collaborative Learning**: Learn independently or connect with peers or mentors learning the same topic.
-* **Project Collaboration**: Complete real-world projects with others to build hands-on experience.
-* **Portfolio Building**: Showcase completed courses and projects in a structured, verifiable portfolio.
-* **Job Recommendations**: Match users with job opportunities based on their skills and portfolio.
-* **Company Validation**: Employers can verify the authenticity of a user's learning and project claims directly from the platform.
+#### Get Courses by Category
+- **GET** `/api/courses/category/:category`
+- Returns all courses in a specific category
+- Public access
+- Response: Array of course objects
 
----
+#### Get Course Count by Category
+- **GET** `/api/courses/category-count`
+- Returns the count of courses in each category
+- Public access
+- Response: Array of category counts
 
-### Motivation
+#### Get Courses by Learning Outcome
+- **GET** `/api/courses/learning-outcome?outcome=keyword`
+- Returns courses matching the learning outcome
+- Public access
+- Response: Array of course objects
 
-The team faced similar struggles at the start of their own learning journeys and saw a gap:
+### Users
 
-> "Is there any platform that tells me if someone else is learning the same thing and can collaborate?"
+#### Register User
+- **POST** `/api/users/register`
+- Register a new user
+- Public access
+- Request body:
+```json
+{
+  "username": "string",
+  "email": "string",
+  "password": "string",
+  "fullName": "string"
+}
+```
+- Response: User object with JWT token
 
-Current platforms only partially solve these issues. **UpTogether** aims to address all of them in a single ecosystem.
+#### Login User
+- **POST** `/api/users/login`
+- Login existing user
+- Public access
+- Request body:
+```json
+{
+  "email": "string",
+  "password": "string"
+}
+```
+- Response: User object with JWT token
 
----
+#### Get User Profile
+- **GET** `/api/users/profile`
+- Get current user's profile
+- Protected route
+- Response: User object
 
-### Tech Stack
+#### Update User Profile
+- **PUT** `/api/users/profile`
+- Update current user's profile
+- Protected route
+- Request body: Profile fields to update
+- Response: Updated user object
 
-* **Frontend**:
+#### Update Password
+- **PUT** `/api/users/password`
+- Update current user's password
+- Protected route
+- Request body:
+```json
+{
+  "currentPassword": "string",
+  "newPassword": "string"
+}
+```
+- Response: Success message
 
-  * Vite
-  * React JS
-  * Tailwind CSS
+#### Update Learning Goals
+- **PUT** `/api/users/learning-goals`
+- Update user's learning goals
+- Protected route
+- Request body:
+```json
+{
+  "currentLearningGoals": [
+    {
+      "topic": "string",
+      "targetDate": "date"
+    }
+  ]
+}
+```
+- Response: Updated user object
 
-* **Backend**:
+### User Progress
 
-  * Node.js
-  * Express.js
-  * MongoDB (with Mongoose)
+#### Initialize Course Progress
+- **POST** `/api/progress/initialize`
+- Initialize progress tracking for a course
+- Protected route
+- Request body:
+```json
+{
+  "courseId": "string"
+}
+```
+- Response: Progress object
 
----
+#### Get Course Progress
+- **GET** `/api/progress/course/:courseId`
+- Get user's progress for a specific course
+- Protected route
+- Response: Progress object
 
-### Key Features
+#### Get All Progress
+- **GET** `/api/progress/all`
+- Get user's progress for all courses
+- Protected route
+- Response: Array of progress objects
 
-* Pair learning with others in the same course.
-* Collaborate on real-world projects within the platform.
-* Build and showcase portfolios from completed work.
-* Receive job recommendations based on platform activity.
-* Employer validation of completed work and skills.
+#### Update Test Case Progress
+- **PUT** `/api/progress/test-case`
+- Update progress for a specific test case
+- Protected route
+- Request body:
+```json
+{
+  "courseId": "string",
+  "chapterIndex": "number",
+  "levelIndex": "number",
+  "testCaseId": "string",
+  "code": "string",
+  "passed": "boolean"
+}
+```
+- Response: Updated progress object
+
+#### Update Time Spent
+- **PUT** `/api/progress/time-spent`
+- Update time spent on a level
+- Protected route
+- Request body:
+```json
+{
+  "courseId": "string",
+  "chapterIndex": "number",
+  "levelIndex": "number",
+  "timeSpent": "number"
+}
+```
+- Response: Updated progress object
+
+#### Abandon Course
+- **PUT** `/api/progress/abandon/:courseId`
+- Mark a course as abandoned
+- Protected route
+- Response: Updated progress object
+
+## Authentication
+
+All protected routes require a Bearer token in the Authorization header:
+```
+Authorization: Bearer your_jwt_token
+```
+
+## Error Responses
+
+All endpoints return error responses in the following format:
+```json
+{
+  "message": "Error description"
+}
+```
+
+Common HTTP status codes:
+- 200: Success
+- 201: Created
+- 400: Bad Request
+- 401: Unauthorized
+- 403: Forbidden
+- 404: Not Found
+- 500: Server Error
