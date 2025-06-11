@@ -9,7 +9,7 @@ import {
   getUserProjects,
   updateProjectStatus
 } from '../controllers/projectController.js';
-import { authenticateUser } from '../middleware/auth.js';
+import { auth } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -19,7 +19,7 @@ router.get('/:id', getProjectById);
 router.get('/technology/:technology', getProjectsByTechnology);
 
 // Protected routes
-router.use(authenticateUser);
+router.use(auth);
 router.post('/', createProject);
 router.put('/:id', updateProject);
 router.post('/:id/apply', applyForRole);

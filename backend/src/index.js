@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: false }));
 // Routes
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/progress', userProgressRoutes);
+app.use('/api/user-progress', userProgressRoutes);
 app.use('/api/post', communityPostRoutes);
 app.use('/api/projects', projectRoutes);
 
