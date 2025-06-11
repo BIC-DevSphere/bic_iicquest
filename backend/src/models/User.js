@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose';
+import Schema from mongoose.Schema;
 
 const UserSchema = new Schema({
   username: { 
@@ -37,11 +37,6 @@ const UserSchema = new Schema({
   profilePicture: {
     type: String,
     default: null
-  },
-  role: {
-    type: String,
-    enum: ['learner', 'mentor', 'admin'],
-    default: 'learner'
   },
   isAvailableForCollaboration: {
     type: Boolean,

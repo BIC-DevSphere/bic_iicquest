@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose';
+import Schema from mongoose.Schema;
 
 // Schema for content within a level
 const ContentSchema = new Schema({
@@ -64,11 +64,6 @@ const LevelSchema = new Schema({
     type: Number, // in minutes
     default: 30 
   },
-  difficulty: {
-    type: String,
-    enum: ['beginner', 'intermediate', 'advanced'],
-    default: 'beginner'
-  },
   testCases: [TestCaseSchema],
   starterCode: {
     type: String,
@@ -115,11 +110,6 @@ const CourseSchema = new Schema({
   },
   category: {
     type: String,
-    required: true
-  },
-  difficulty: {
-    type: String,
-    enum: ['beginner', 'intermediate', 'advanced'],
     required: true
   },
   chapters: [ChapterSchema],

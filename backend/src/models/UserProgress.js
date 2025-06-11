@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+import mongoose from 'mongoose';
+import Schema from mongoose.Schema;
 
 // Schema for tracking test case completion
 const TestCaseProgressSchema = new Schema({
