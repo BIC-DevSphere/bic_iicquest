@@ -35,7 +35,10 @@ const uploadToCloudinary = (buffer) => {
 // Create Community Post Controller with image upload support
 export const createCommunityPost = async (req, res) => {
     try {
-        const { title, body, author } = req.body;
+        const { title, body } = req.body;
+        if(!title || !body) {
+            return res.status(400).json({ message: "Title and body are required" });
+        }
 
         let imageUrl = "";
 
@@ -47,7 +50,7 @@ export const createCommunityPost = async (req, res) => {
         const newCommunityPost = new CommunityPost({
             title,
             body,
-            author,
+            author: req.user.id,
             image: imageUrl
         });
 
@@ -61,6 +64,9 @@ export const createCommunityPost = async (req, res) => {
 
 export const commentOnPost = async (req, res) => {
     try {
+        if(!req.body.body) {
+            return res.status(400).json({ message: "Comment body is required" });
+        }
         const addComment = await CommunityPost.findByIdAndUpdate(
             req.params.id,
             {
