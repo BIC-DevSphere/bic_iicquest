@@ -115,15 +115,6 @@ const CourseSchema = new mongoose.Schema({
     name: {
       type: String,
       required: true
-    },
-    proficiencyLevel: {
-      type: String,
-      enum: ['beginner', 'intermediate', 'advanced'],
-      required: true
-    },
-    description: {
-      type: String,
-      required: true
     }
   }],
   chapters: [ChapterSchema],
