@@ -1,20 +1,19 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import CoursePage from "./pages/CoursePage";
 import CourseCatalogPage from "./pages/CourseCatalogPage";
+import MainLayout from "./Layouts/MainLayout";
 
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
+        <Route path="/" element={<MainLayout />}>
+          <Route index path="/home" element={<HomePage />} />
           <Route path="/course/:courseId" element={<CoursePage />} />
+        <Route path="/learn/courses" element={<CourseCatalogPage />} />
         </Route>
-        <Route path="/course-catalog" element={<CourseCatalogPage />} />
-        <Route path="/coursecatalog" element={<CourseCatalogPage />} />
       </Routes>
     </BrowserRouter>
   );

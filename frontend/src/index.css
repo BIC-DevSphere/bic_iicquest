@@ -5,6 +5,10 @@
   @apply m-0 p-0 box-border;
 }
 
+#root {
+  @apply bg-gray-50;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

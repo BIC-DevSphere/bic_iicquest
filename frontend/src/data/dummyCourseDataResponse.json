@@ -1,0 +1,134 @@
+{
+  "title": "Advanced JavaScript Programming",
+  "description": "Master JavaScript with practical examples and hands-on projects",
+  "category": "Programming",
+  "thumbNail": "https://placehold.co/600x400",
+  "chapters": [
+    {
+      "title": "Asynchronous Programming",
+      "description": "Learn about promises, async/await, and event loop",
+      "order": 1,
+      "levels": [
+        {
+          "title": "Introduction to Promises",
+          "description": "Understanding the basics of Promise in JavaScript",
+          "content": [
+            {
+              "title": "What are Promises?",
+              "content": {
+                "text": "Promises are objects representing eventual completion of an asynchronous operation",
+                "media": "https://example.com/promise-diagram.png",
+                "examples": [
+                  "const promise = new Promise((resolve, reject) => {\n  // async code here\n});"
+                ]
+              },
+              "order": 1
+            }
+          ],
+          "order": 1,
+          "estimatedTime": 45,
+          "testCases": [
+            {
+              "description": "Create a promise that resolves after 1 second",
+              "testCode": "function delayedGreeting() {\n  return new Promise(resolve => setTimeout(() => resolve('Hello'), 1000));\n}",
+              "expectedOutput": "Hello",
+              "hint": "Use setTimeout inside the Promise constructor"
+            }
+          ],
+          "starterCode": "function delayedGreeting() {\n  // Your code here\n}",
+          "solutionCode": "function delayedGreeting() {\n  return new Promise(resolve => setTimeout(() => resolve('Hello'), 1000));\n}",
+          "hints": ["Think about using setTimeout", "Remember to return the Promise"]
+        }
+      ],
+      "prerequisites": ["Basic JavaScript knowledge", "Functions", "Objects"]
+    },
+    {
+      "title": "Functional Programming",
+      "description": "Explore higher-order functions, map, filter, and reduce",
+      "order": 2,
+      "levels": [
+        {
+          "title": "Higher-Order Functions",
+          "description": "Learn how functions can accept and return other functions",
+          "content": [
+            {
+              "title": "What are Higher-Order Functions?",
+              "content": {
+                "text": "A higher-order function is a function that takes another function as an argument or returns a function.",
+                "media": "https://example.com/hof-diagram.png",
+                "examples": [
+                  "function greet(fn) {\n  fn();\n}"
+                ]
+              },
+              "order": 1
+            }
+          ],
+          "order": 1,
+          "estimatedTime": 30,
+          "testCases": [
+            {
+              "description": "Write a function that takes a function and calls it",
+              "testCode": "function callFn(fn) {\n  fn();\n}",
+              "expectedOutput": "Function called",
+              "hint": "Pass a function as an argument"
+            }
+          ],
+          "starterCode": "function callFn(fn) {\n  // Your code here\n}",
+          "solutionCode": "function callFn(fn) {\n  fn();\n}",
+          "hints": ["Remember to call the argument as a function"]
+        }
+      ],
+      "prerequisites": ["Basic JavaScript knowledge"]
+    },
+    {
+      "title": "Error Handling",
+      "description": "Understand try/catch, error objects, and custom errors",
+      "order": 3,
+      "levels": [
+        {
+          "title": "Using try/catch",
+          "description": "Learn how to handle errors gracefully in JavaScript",
+          "content": [
+            {
+              "title": "try/catch Basics",
+              "content": {
+                "text": "The try/catch statement lets you handle errors without stopping the program.",
+                "media": "https://example.com/try-catch.png",
+                "examples": [
+                  "try {\n  throw new Error('Oops!');\n} catch (e) {\n  console.log(e.message);\n}"
+                ]
+              },
+              "order": 1
+            }
+          ],
+          "order": 1,
+          "estimatedTime": 20,
+          "testCases": [
+            {
+              "description": "Throw and catch an error",
+              "testCode": "try {\n  throw new Error('Test');\n} catch (e) {\n  console.log(e.message);\n}",
+              "expectedOutput": "Test",
+              "hint": "Use throw and catch"
+            }
+          ],
+          "starterCode": "try {\n  // Your code here\n} catch (e) {\n  // Handle error\n}",
+          "solutionCode": "try {\n  throw new Error('Test');\n} catch (e) {\n  console.log(e.message);\n}",
+          "hints": ["Use throw to create an error", "Use catch to handle it"]
+        }
+      ],
+      "prerequisites": ["Basic JavaScript knowledge"]
+    }
+  ],
+  "tags": ["JavaScript", "Async Programming", "Web Development"],
+  "creator": "507f1f77bcf86cd799439011",
+  "estimatedHours": 20,
+  "learningOutcomes": [
+    "Understand asynchronous programming concepts",
+    "Master Promise usage and patterns",
+    "Build real-world async applications"
+  ],
+  "requirements": ["Basic JavaScript knowledge", "Code editor", "Web browser"],
+  "isPublished": true,
+  "createdAt": "2024-03-15T10:00:00.000Z",
+  "updatedAt": "2024-03-15T10:00:00.000Z"
+}
