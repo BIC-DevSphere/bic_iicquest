@@ -1,9 +1,8 @@
-import express from "express";
-import { createCommunityPost, getCommunityPosts, uploadMiddleware } from "../controllers/communityPostController.js";
+import express from 'express';
+import { createCommunityPost, uploadMiddleware } from '../controllers/communityPostController.js';
 
 const router = express.Router();
 
-router.post("/create", uploadMiddleware, createCommunityPost);
-router.get("/", getCommunityPosts);
+router.post('/create', uploadMiddleware, createCommunityPost);
 
 export default router;
