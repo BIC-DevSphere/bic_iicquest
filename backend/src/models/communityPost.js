@@ -9,9 +9,17 @@ const CommentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, ref: 'User',
         required: true,
     },
-    post: {
+    postId: {
         type: mongoose.Schema.Types.ObjectId, ref: 'CommunityPost',
         required: true,
+    },
+    likes: {
+        type: Number,
+        default: 0,
+    },
+    dislikes: {
+        type: Number,
+        default: 0,
     },
     createdAt: {
         type: Date,

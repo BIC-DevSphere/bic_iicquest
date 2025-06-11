@@ -1,6 +1,7 @@
 import CommunityPost from "../models/communityPost.js";
 import multer from "multer";
-import cloudinary from "cloudinary";
+import cloudinaryModule from 'cloudinary';
+const cloudinary = cloudinaryModule.v2;
 import streamifier from "streamifier";
 import dotenv from "dotenv";
 dotenv.config();
@@ -57,6 +58,30 @@ export const createCommunityPost = async (req, res) => {
         res.status(400).json({ message: error.message });
     }
 };
+
+export const commentOnPost = async (req, res) => {
+    try {
+        const addComment = await CommunityPost.findByIdAndUpdate(
+            req.params.id,
+            {
+                $push: {
+                    comments: { 
+                        body: req.body.body,
+                        author: req.user.id,
+                        postId: req.params.id
+                    },
+                },
+            },
+            { new: true }
+        );
+        if (!addComment) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        return res.status(200).json({ message: "Comment added successfully" });
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
+    }
+}
 
 // Get all community posts
 export const getCommunityPosts = async (req, res) => {
