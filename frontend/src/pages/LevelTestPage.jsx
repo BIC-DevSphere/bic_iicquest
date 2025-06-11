@@ -49,10 +49,43 @@ const LevelTestPage = () => {
   const [showHints, setShowHints] = useState(false);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
   const [testStartTime, setTestStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [testAttempts, setTestAttempts] = useState(0);
+  const [maxAttempts] = useState(5);
+  const [codeHistory, setCodeHistory] = useState([]);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   useEffect(() => {
     fetchTestData();
   }, [courseId, chapterId, levelId]);
+
+  // Timer effect
+  useEffect(() => {
+    let interval = null;
+    if (isTimerRunning) {
+      interval = setInterval(() => {
+        setElapsedTime(prevTime => prevTime + 1);
+      }, 1000);
+    } else if (!isTimerRunning) {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning]);
+
+  // Start timer when test data is loaded
+  useEffect(() => {
+    if (level && testCases.length > 0 && !isTimerRunning) {
+      setIsTimerRunning(true);
+      setTestStartTime(Date.now());
+    }
+  }, [level, testCases]);
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
   const fetchTestData = async () => {
     try {
@@ -102,8 +135,22 @@ const LevelTestPage = () => {
       return;
     }
 
+    if (testAttempts >= maxAttempts) {
+      alert(`Maximum attempts (${maxAttempts}) reached. Please review your code carefully.`);
+      return;
+    }
+
     setIsTestRunning(true);
     setTestResults([]);
+    setTestAttempts(prev => prev + 1);
+
+    // Save code to history
+    const codeSnapshot = {
+      attempt: testAttempts + 1,
+      code: userCode,
+      timestamp: new Date()
+    };
+    setCodeHistory(prev => [...prev, codeSnapshot]);
 
     try {
       // Simulate test execution (in a real app, you'd send this to a backend)
@@ -114,22 +161,35 @@ const LevelTestPage = () => {
       setAllTestsPassed(allPassed);
 
       if (allPassed) {
-        // Update progress
-        const timeSpent = Math.floor((Date.now() - testStartTime) / 60000); // minutes
-        await completeLevelTest({
-          courseId,
-          chapterId,
-          levelId,
-          score: 100,
-          timeSpent,
-          code: userCode
-        });
+        setIsTimerRunning(false);
+        setShowSubmitConfirm(true);
       }
     } catch (error) {
       console.error("Error running tests:", error);
       alert("Failed to run tests. Please try again.");
     } finally {
       setIsTestRunning(false);
+    }
+  };
+
+  const submitSolution = async () => {
+    try {
+      // Update progress
+      const timeSpent = Math.floor(elapsedTime / 60); // minutes
+      await completeLevelTest({
+        courseId,
+        chapterId,
+        levelId,
+        score: 100,
+        timeSpent,
+        code: userCode,
+        attempts: testAttempts
+      });
+      
+      setShowSubmitConfirm(false);
+      // Show success message or redirect
+    } catch (error) {
+      console.error("Error submitting solution:", error);
     }
   };
 
@@ -230,12 +290,30 @@ const LevelTestPage = () => {
               <p className="text-gray-600">{level.description}</p>
             </div>
             
-            {allTestsPassed && (
-              <Badge variant="default" className="bg-green-600">
-                <CheckCircle className="w-4 h-4 mr-1" />
-                All Tests Passed!
-              </Badge>
-            )}
+            <div className="flex items-center gap-6">
+              {/* Timer */}
+              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg">
+                <Timer className="w-5 h-5 text-blue-600" />
+                <span className="font-mono text-lg font-semibold text-blue-800">
+                  {formatTime(elapsedTime)}
+                </span>
+              </div>
+              
+              {/* Attempts Counter */}
+              <div className="flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-lg">
+                <Target className="w-5 h-5 text-orange-600" />
+                <span className="text-orange-800 font-semibold">
+                  {testAttempts}/{maxAttempts} attempts
+                </span>
+              </div>
+              
+              {allTestsPassed && (
+                <Badge variant="default" className="bg-green-600">
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  All Tests Passed!
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
@@ -482,6 +560,37 @@ const LevelTestPage = () => {
             )}
           </div>
         </div>
+
+        {/* Submit Confirmation Modal */}
+        {showSubmitConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-lg max-w-md w-full mx-4">
+              <div className="text-center">
+                <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Congratulations!</h3>
+                <p className="text-gray-600 mb-6">
+                  All tests passed! Your solution is correct.
+                  <br />
+                  Time taken: {formatTime(elapsedTime)}
+                  <br />
+                  Attempts: {testAttempts}
+                </p>
+                <div className="flex gap-3">
+                  <Button onClick={submitSolution} className="flex-1">
+                    Submit Solution
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowSubmitConfirm(false)}
+                    className="flex-1"
+                  >
+                    Continue Testing
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -115,23 +115,6 @@ const LevelContentPage = () => {
     }
   };
 
-  const markAsRead = async () => {
-    try {
-      await updateLevelProgress({
-        courseId,
-        chapterId,
-        levelId,
-        status: 'content_completed',
-        timeSpent: 5 // Assume 5 minutes for reading content
-      });
-      // Refresh progress
-      const progressData = await getCourseProgress(courseId);
-      setProgress(progressData);
-    } catch (error) {
-      console.error("Error updating progress:", error);
-    }
-  };
-
   const formatDuration = (minutes) => {
     return `${minutes} min`;
   };
@@ -325,13 +308,6 @@ const LevelContentPage = () => {
 
             {/* Action Buttons */}
             <div className="flex gap-4">
-              {content.length > 0 && currentContentIndex === content.length - 1 && (
-                <Button onClick={markAsRead} variant="outline">
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Mark as Read
-                </Button>
-              )}
-              
               {level.testCases?.length > 0 && (
                 <Button onClick={handleStartTest} size="lg">
                   <Play className="w-5 h-5 mr-2" />

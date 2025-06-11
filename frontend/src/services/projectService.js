@@ -79,4 +79,34 @@ export const updateProjectStatus = async (id, statusData) => {
     } catch (error) {
         throw error;
     }
+};
+
+// Apply for project (general application)
+export const applyForProject = async (projectId, applicationData) => {
+    try {
+        const response = await axiosInstance.post(API_ENDPOINTS.applyForProject(projectId), applicationData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
 }; 
+
+// Get project applications (for project owner)
+export const getProjectApplications = async (projectId) => {
+    try {
+        const response = await axiosInstance.get(API_ENDPOINTS.getProjectApplications(projectId));
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Update application status
+export const updateApplicationStatus = async (projectId, applicationId, status) => {
+    try {
+        const response = await axiosInstance.put(API_ENDPOINTS.updateApplicationStatus(projectId, applicationId), { status });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};

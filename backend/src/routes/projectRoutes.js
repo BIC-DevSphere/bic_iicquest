@@ -9,6 +9,9 @@ import {
   getUserProjects,
   updateProjectStatus,
   applyForProject,
+  getProjectApplications,
+  updateApplicationStatus
+
   viewAllApplications,
   updateMessage,
   deleteMessage,
@@ -33,6 +36,11 @@ router.put('/:id', updateProject);
 router.post('/:id/apply', applyForRole);
 router.get('/user/projects', getUserProjects);
 router.post('/user/projects/apply/:id', applyForProject);
+router.put('/:id/status', updateProjectStatus);
+
+// Project applications routes
+router.get('/:id/applications', getProjectApplications);
+router.put('/:projectId/applications/:applicationId/status', updateApplicationStatus);
 
 // Chat Route
 router.post('/project/:id/groupchat', createProjectGroupChat);
