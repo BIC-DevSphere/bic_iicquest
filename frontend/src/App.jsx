@@ -11,6 +11,7 @@ import LevelContentPage from "./pages/LevelContentPage";
 import LevelTestPage from "./pages/LevelTestPage";
 import CourseOverviewPage from "./pages/CourseOverviewPage";
 import PairProjectsPage from "./pages/PairProjectsPage";
+import JobBoardPage from "./pages/JobBoardPage";
 
 const App = () => {
   return (
@@ -21,7 +22,7 @@ const App = () => {
           <Route path="/learn/courses" element={<CourseCatalogPage />} />
           <Route path="/pair-projects" element={<PairProjectsPage />} />
           <Route path="/community" element={<CommunityPage />} />
-          
+          <Route path="/jobs" element={<JobBoardPage/>}/>
           {/* Course Learning Routes */}
           <Route path="/course/:courseId" element={<CoursePage />} />
           <Route path="/course/:courseId/overview" element={<CourseOverviewPage />} />
