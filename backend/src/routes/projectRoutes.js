@@ -1,0 +1,29 @@
+import express from 'express';
+import { 
+  getAllProjects,
+  getProjectById,
+  createProject,
+  updateProject,
+  applyForRole,
+  getProjectsByTechnology,
+  getUserProjects,
+  updateProjectStatus
+} from '../controllers/projectController.js';
+import { authenticateUser } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Public routes
+router.get('/', getAllProjects);
+router.get('/:id', getProjectById);
+router.get('/technology/:technology', getProjectsByTechnology);
+
+// Protected routes
+router.use(authenticateUser);
+router.post('/', createProject);
+router.put('/:id', updateProject);
+router.post('/:id/apply', applyForRole);
+router.get('/user/projects', getUserProjects);
+router.patch('/:id/status', updateProjectStatus);
+
+export default router; 

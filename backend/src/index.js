@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import courseRoutes from './routes/courseRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import userProgressRoutes from './routes/userProgressRoutes.js';
+import communityPostRoutes from './routes/communityPostRoutes.js';
+import projectRoutes from './routes/projectRoutes.js';
 
 dotenv.config();
 
@@ -13,12 +15,14 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
 // Routes
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/progress', userProgressRoutes);
+app.use('/api/post', communityPostRoutes);
+app.use('/api/projects', projectRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -37,4 +41,4 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
-  }); 
+  });
