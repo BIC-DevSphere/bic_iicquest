@@ -63,6 +63,283 @@ npm start
 - Public access
 - Response: Array of course objects
 
+### Course Navigation APIs
+
+#### Get All Chapters
+- **GET** `/api/courses/:courseId/chapters`
+- Returns all chapters of a course, sorted by order
+- Public access
+- Response: Array of chapter objects
+```json
+[
+  {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    "prerequisites": ["string"],
+    "levels": ["Level"]
+  }
+]
+```
+
+#### Get Chapter Details
+- **GET** `/api/courses/:courseId/chapters/:chapterId`
+- Returns a specific chapter with its levels
+- Public access
+- Response: Chapter object with full details
+
+#### Get Chapter Levels
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels`
+- Returns all levels in a chapter, sorted by order
+- Public access
+- Response: Array of level objects
+```json
+[
+  {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    "estimatedTime": "number",
+    "starterCode": "string",
+    "content": ["Content"],
+    "testCases": ["TestCase"]
+  }
+]
+```
+
+#### Get Level Details
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId`
+- Returns a specific level with its content and test cases
+- Public access
+- Response: Complete level object
+
+#### Get Level Content
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/content`
+- Returns all content items of a level, sorted by order
+- Public access
+- Response: Array of content objects
+```json
+[
+  {
+    "title": "string",
+    "content": {
+      "text": "string",
+      "media": "string",
+      "examples": ["string"]
+    },
+    "order": "number"
+  }
+]
+```
+
+#### Get Level Test Cases
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/test-cases`
+- Returns all test cases of a level
+- Public access
+- Response: Array of test case objects
+```json
+[
+  {
+    "description": "string",
+    "testCode": "string",
+    "expectedOutput": "string",
+    "hint": "string"
+  }
+]
+```
+
+#### Get Next Level
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/next`
+- Returns the next level in sequence (handles chapter transitions)
+- Public access
+- Response: Next level and chapter information
+```json
+{
+  "nextLevel": {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    "estimatedTime": "number",
+    // ... other level fields
+  },
+  "nextChapter": {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    // ... other chapter fields
+  } | null,
+  "courseCompleted": "boolean"
+}
+```
+
+### Course Creation APIs
+
+#### Create New Course
+- **POST** `/api/courses`
+- Create a new course
+- Request body:
+```json
+{
+  "title": "string",
+  "description": "string",
+  "category": "string",
+  "estimatedHours": "number",
+  "learningOutcomes": ["string"],
+  "requirements": ["string"],
+  "tags": ["string"]
+}
+```
+- Response: Course object
+
+#### Add Chapter to Course
+- **POST** `/api/courses/:courseId/chapters`
+- Add a new chapter to a course
+- Request body:
+```json
+{
+  "title": "string",
+  "description": "string",
+  "prerequisites": ["string"],
+  "order": "number"
+}
+```
+- Response: Updated course object
+
+#### Add Level to Chapter
+- **POST** `/api/courses/:courseId/chapters/:chapterId/levels`
+- Add a new level to a chapter
+- Request body:
+```json
+{
+  "title": "string",
+  "description": "string",
+  "order": "number",
+  "estimatedTime": "number",
+  "starterCode": "string",
+  "solutionCode": "string",
+  "hints": ["string"]
+}
+```
+- Response: Updated course object
+
+#### Add Content to Level
+- **POST** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/content`
+- Add content to a level
+- Request body:
+```json
+{
+  "title": "string",
+  "content": {
+    "text": "string",
+    "media": "string",
+    "examples": ["string"]
+  },
+  "order": "number"
+}
+```
+- Response: Updated course object
+
+#### Add Test Case to Level
+- **POST** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/test-cases`
+- Add a test case to a level
+- Request body:
+```json
+{
+  "description": "string",
+  "testCode": "string",
+  "expectedOutput": "string",
+  "hint": "string"
+}
+```
+- Response: Updated course object
+
+#### Update Course Status
+- **PUT** `/api/courses/:courseId/status`
+- Update course publish status
+- Request body:
+```json
+{
+  "isPublished": "boolean"
+}
+```
+- Response: Updated course object
+
+### Example: Creating a Complete Course
+
+Here's an example flow to create a complete course:
+
+1. Create the course:
+```bash
+POST /api/courses
+{
+  "title": "Introduction to JavaScript",
+  "description": "Learn JavaScript from scratch",
+  "category": "Programming",
+  "estimatedHours": 10,
+  "learningOutcomes": ["Understand basic JS syntax", "Write simple programs"],
+  "requirements": ["Basic computer knowledge"],
+  "tags": ["javascript", "programming", "web development"]
+}
+```
+
+2. Add a chapter:
+```bash
+POST /api/courses/{courseId}/chapters
+{
+  "title": "Variables and Data Types",
+  "description": "Learn about JS variables and data types",
+  "prerequisites": ["None"],
+  "order": 1
+}
+```
+
+3. Add a level to the chapter:
+```bash
+POST /api/courses/{courseId}/chapters/{chapterId}/levels
+{
+  "title": "Introduction to Variables",
+  "description": "Learn how to declare and use variables",
+  "order": 1,
+  "estimatedTime": 30,
+  "starterCode": "let myVariable;",
+  "solutionCode": "let myVariable = 42;",
+  "hints": ["Think about what value you want to store"]
+}
+```
+
+4. Add content to the level:
+```bash
+POST /api/courses/{courseId}/chapters/{chapterId}/levels/{levelId}/content
+{
+  "title": "What are Variables?",
+  "content": {
+    "text": "Variables are containers for storing data values...",
+    "media": "https://example.com/variables.png",
+    "examples": ["let x = 5;", "const name = 'John';"]
+  },
+  "order": 1
+}
+```
+
+5. Add test cases to the level:
+```bash
+POST /api/courses/{courseId}/chapters/{chapterId}/levels/{levelId}/test-cases
+{
+  "description": "Variable should be initialized with number 42",
+  "testCode": "assert.equal(myVariable, 42);",
+  "expectedOutput": "42",
+  "hint": "Use the assignment operator (=) to give the variable a value"
+}
+```
+
+6. Publish the course:
+```bash
+PUT /api/courses/{courseId}/status
+{
+  "isPublished": true
+}
+```
+
 ### Users
 
 #### Register User
