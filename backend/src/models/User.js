@@ -26,6 +26,55 @@ const UserSchema = new mongoose.Schema({
   skills: [{ 
     type: String 
   }],
+  earnedTechnologies: [{
+    name: {
+      type: String,
+      required: true
+    },
+    proficiencyLevel: {
+      type: String,
+      enum: ['beginner', 'intermediate', 'advanced'],
+      required: true
+    },
+    earnedFrom: {
+      course: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+        required: true
+      },
+      earnedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    description: {
+      type: String,
+      required: true
+    }
+  }],
+  badges: [{
+    name: {
+      type: String,
+      required: true
+    },
+    description: {
+      type: String,
+      required: true
+    },
+    icon: {
+      type: String,
+      required: true
+    },
+    earnedAt: {
+      type: Date,
+      default: Date.now
+    },
+    category: {
+      type: String,
+      enum: ['course_completion', 'project_creation', 'collaboration', 'achievement'],
+      required: true
+    }
+  }],
   interests: [{ 
     type: String 
   }],

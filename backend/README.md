@@ -477,6 +477,123 @@ PUT /api/courses/{courseId}/status
 - Protected route
 - Response: Updated progress object
 
+### Projects
+
+#### Get All Projects
+- **GET** `/api/projects`
+- Returns all projects
+- Public access
+- Response: Array of project objects
+```json
+[
+  {
+    "title": "string",
+    "description": "string",
+    "technologies": ["string"],
+    "roles": [
+      {
+        "title": "string",
+        "description": "string",
+        "skills": ["string"],
+        "isOpen": "boolean",
+        "assignedUser": "User | null"
+      }
+    ],
+    "creator": {
+      "username": "string",
+      "fullName": "string"
+    },
+    "isOpenForCollaboration": "boolean",
+    "githubRepo": "string",
+    "liveDemo": "string",
+    "status": "string",
+    "collaborators": [
+      {
+        "user": {
+          "username": "string",
+          "fullName": "string"
+        },
+        "role": "string",
+        "joinedAt": "date"
+      }
+    ]
+  }
+]
+```
+
+#### Get Project by ID
+- **GET** `/api/projects/:id`
+- Returns a specific project by ID
+- Public access
+- Response: Project object
+
+#### Get Projects by Technology
+- **GET** `/api/projects/technology/:technology`
+- Returns all projects using a specific technology
+- Public access
+- Response: Array of project objects
+
+#### Create New Project
+- **POST** `/api/projects`
+- Create a new project (requires completion of 2 courses)
+- Protected route
+- Request body:
+```json
+{
+  "title": "string",
+  "description": "string",
+  "technologies": ["string"],
+  "roles": [
+    {
+      "title": "string",
+      "description": "string",
+      "skills": ["string"]
+    }
+  ],
+  "isOpenForCollaboration": "boolean",
+  "githubRepo": "string",
+  "liveDemo": "string"
+}
+```
+- Response: Created project object
+
+#### Update Project
+- **PUT** `/api/projects/:id`
+- Update project details (creator only)
+- Protected route
+- Request body: Project fields to update
+- Response: Updated project object
+
+#### Apply for Role
+- **POST** `/api/projects/:id/apply`
+- Apply for an open role in a project
+- Protected route
+- Request body:
+```json
+{
+  "roleId": "string"
+}
+```
+- Response: Updated project object
+
+#### Get User Projects
+- **GET** `/api/projects/user/projects`
+- Get all projects created by or collaborated on by the user
+- Protected route
+- Response: Array of project objects
+
+#### Update Project Status
+- **PATCH** `/api/projects/:id/status`
+- Update project status (creator or collaborator only)
+- Protected route
+- Request body:
+```json
+{
+  "status": "string" // One of: planning, in_progress, completed, abandoned
+}
+```
+- Response: Updated project object
+
 ## Authentication
 
 All protected routes require a Bearer token in the Authorization header:
