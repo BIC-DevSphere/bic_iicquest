@@ -239,19 +239,21 @@ export const applyForProject = async (req, res) => {
     const userId = req.user.id;
     const projectId = req.params.id;
     const requiredSkills = ['nodejs', 'flutter'];
-    const skills = ['nodejs', 'flutter'];
+    // const skills = ['nodejs', 'flutter'];
+    const skills = req.user.earnedTechnologies;
 
     let isSkilled = false
 
     for(let i = 0; i < requiredSkills.length; i++) {
-      if(skills.includes(requiredSkills[i])) {
+      if(skills.includes(requiredSkills[i].name)) {
         isSkilled = true;
         continue;
       }else{
         isSkilled = false;
       }
     }
-    if(!isSkilled) return res.status(400).json({ message: 'Your skills are not enough'});
+    
+    if(!isSkilled) return res.status(400).json({ message: 'Your don\'t have enough skills'});
     
     if(!projectId) return res.status(400).json({ message: 'Project ID is required' }); 
     const foundProject = await Project.findById(req.params.id);

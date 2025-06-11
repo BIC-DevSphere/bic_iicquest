@@ -36,11 +36,6 @@ const UserSchema = new mongoose.Schema({
       type: String,
       required: true
     },
-    proficiencyLevel: {
-      type: String,
-      enum: ['beginner', 'intermediate', 'advanced'],
-      required: true
-    },
     earnedFrom: {
       course: {
         type: mongoose.Schema.Types.ObjectId,
@@ -51,10 +46,6 @@ const UserSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
       }
-    },
-    description: {
-      type: String,
-      required: true
     }
   }],
   badges: [{
