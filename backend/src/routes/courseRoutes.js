@@ -1,4 +1,5 @@
 import express from 'express';
+import { auth } from '../middleware/auth.js';
 import {
   getAllCourses,
   getCourseById,
@@ -22,6 +23,7 @@ import {
 } from '../controllers/courseController.js';
 
 const router = express.Router();
+router.use(auth);
 
 // Public course discovery routes
 router.get('/', getAllCourses);
@@ -40,7 +42,7 @@ router.get('/:courseId/chapters/:chapterId/levels/:levelId/content', getLevelCon
 router.get('/:courseId/chapters/:chapterId/levels/:levelId/test-cases', getLevelTestCases);
 router.get('/:courseId/chapters/:chapterId/levels/:levelId/next', getNextLevel);
 
-// Course creation routes
+// Course creation routes (admin only)
 router.post('/', createCourse);
 router.post('/:courseId/chapters', addChapter);
 router.post('/:courseId/chapters/:chapterId/levels', addLevel);

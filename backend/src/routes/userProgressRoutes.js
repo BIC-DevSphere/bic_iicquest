@@ -1,24 +1,39 @@
 import express from 'express';
+import { auth } from '../middleware/auth.js';
 import {
   initializeProgress,
-  updateTestCaseProgress,
   getCourseProgress,
-  getAllProgress,
-  updateTimeSpent,
-  abandonCourse
+  updateLevelProgress,
+  completeLevelTest,
+  getUserProgress,
+  completeChapter,
+  completeCourse
 } from '../controllers/userProgressController.js';
-import { auth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// All routes are protected
+// All routes require authentication
 router.use(auth);
 
+// Initialize progress for a course
 router.post('/initialize', initializeProgress);
+
+// Get course progress for current user
 router.get('/course/:courseId', getCourseProgress);
-router.get('/all', getAllProgress);
-router.put('/test-case', updateTestCaseProgress);
-router.put('/time-spent', updateTimeSpent);
-router.put('/abandon/:courseId', abandonCourse);
+
+// Update level progress
+router.put('/level', updateLevelProgress);
+
+// Complete level test
+router.post('/complete-test', completeLevelTest);
+
+// Get user's overall progress
+router.get('/', getUserProgress);
+
+// Complete chapter
+router.post('/complete-chapter', completeChapter);
+
+// Complete course
+router.post('/complete-course', completeCourse);
 
 export default router; 

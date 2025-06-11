@@ -3,33 +3,71 @@ export const API_BASE_URL = "http://localhost:3000/api"
 
 export const API_ENDPOINTS = {
     // Course endpoints
-    getCoursesInfo: `${API_BASE_URL}/courses`,
-    getCourseById: (id) => `${API_BASE_URL}/courses/${id}`,
-    searchCourses: (query) => `${API_BASE_URL}/courses/search?query=${query}`,
-    getCoursesByCategory: (category) => `${API_BASE_URL}/courses/category/${category}`,
-    getCategoryCount: `${API_BASE_URL}/courses/category-count`,
-    getCoursesByLearningOutcome: (outcome) => `${API_BASE_URL}/courses/learning-outcome?outcome=${outcome}`,
+    getCoursesInfo: "/courses",
+    getCourseById: (id) => `/courses/${id}`,
+    searchCourses: (query) => `/courses/search?query=${query}`,
+    getCoursesByCategory: (category) => `/courses/category/${category}`,
+    getCategoryCount: "/courses/category-count",
+    getCoursesByLearningOutcome: (outcome) => `/courses/learning-outcome?outcome=${outcome}`,
 
     // Course navigation endpoints
-    getCourseChapters: (courseId) => `${API_BASE_URL}/courses/${courseId}/chapters`,
-    getChapterDetails: (courseId, chapterId) => `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}`,
-    getChapterLevels: (courseId, chapterId) => `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels`,
+    getCourseChapters: (courseId) => `/courses/${courseId}/chapters`,
+    getChapterDetails: (courseId, chapterId) => `/courses/${courseId}/chapters/${chapterId}`,
+    getChapterLevels: (courseId, chapterId) => `/courses/${courseId}/chapters/${chapterId}/levels`,
     getLevelDetails: (courseId, chapterId, levelId) => 
-        `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels/${levelId}`,
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}`,
     getLevelContent: (courseId, chapterId, levelId) => 
-        `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/content`,
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/content`,
     getLevelTestCases: (courseId, chapterId, levelId) => 
-        `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/test-cases`,
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/test-cases`,
     getNextLevel: (courseId, chapterId, levelId) => 
-        `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/next`,
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/next`,
 
     // Course creation endpoints
-    createCourse: `${API_BASE_URL}/courses`,
-    addChapter: (courseId) => `${API_BASE_URL}/courses/${courseId}/chapters`,
-    addLevel: (courseId, chapterId) => `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels`,
+    createCourse: "/courses",
+    addChapter: (courseId) => `/courses/${courseId}/chapters`,
+    addLevel: (courseId, chapterId) => `/courses/${courseId}/chapters/${chapterId}/levels`,
     addContent: (courseId, chapterId, levelId) => 
-        `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/content`,
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/content`,
     addTestCase: (courseId, chapterId, levelId) => 
-        `${API_BASE_URL}/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/test-cases`,
-    updateCourseStatus: (courseId) => `${API_BASE_URL}/courses/${courseId}/status`,
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/test-cases`,
+    updateCourseStatus: (courseId) => `/courses/${courseId}/status`,
+
+    // Community endpoints
+    getCommunityPosts: "/post",
+    getCommunityPostById: (id) => `/post/${id}`,
+    createCommunityPost: "/post",
+    commentOnPost: (id) => `/post/comment/${id}`,
+    
+    // Project endpoints
+    getAllProjects: "/projects",
+    getProjectById: (id) => `/projects/${id}`,
+    getProjectsByTechnology: (technology) => `/projects/technology/${technology}`,
+    createProject: "/projects",
+    updateProject: (id) => `/projects/${id}`,
+    applyForRole: (id) => `/projects/${id}/apply`,
+    getUserProjects: "/projects/user/projects",
+    updateProjectStatus: (id) => `/projects/${id}/status`,
+
+    // User endpoints
+    register: "/users/register",
+    login: "/users/login",
+    getProfile: "/users/profile",
+    updateProfile: "/users/profile",
+    updatePassword: "/users/password",
+    updateLearningGoals: "/users/learning-goals",
+
+    // User Progress endpoints
+    initializeProgress: "/user-progress/initialize",
+    getCourseProgress: (courseId) => `/user-progress/course/${courseId}`,
+    getAllProgress: "/user-progress",
+    updateLevelProgress: "/user-progress/level",
+    completeLevelTest: "/user-progress/complete-test",
+    completeChapter: "/user-progress/complete-chapter",
+    completeCourse: "/user-progress/complete-course",
+    
+    // Legacy progress endpoints (for backward compatibility)
+    updateTestCaseProgress: "/progress/test-case",
+    updateTimeSpent: "/progress/time-spent",
+    abandonCourse: (courseId) => `/progress/abandon/${courseId}`,
 }

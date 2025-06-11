@@ -67,23 +67,34 @@ export const commentOnPost = async (req, res) => {
         if(!req.body.body) {
             return res.status(400).json({ message: "Comment body is required" });
         }
-        const addComment = await CommunityPost.findByIdAndUpdate(
+
+        // First, add the comment and increment totalComments
+        const updatedPost = await CommunityPost.findByIdAndUpdate(
             req.params.id,
             {
                 $push: {
                     comments: { 
                         body: req.body.body,
                         author: req.user.id,
-                        postId: req.params.id
+                        post: req.params.id,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
                     },
                 },
+                $inc: { totalComments: 1 }
             },
             { new: true }
-        );
-        if (!addComment) {
+        ).populate('author', 'username fullName name email')
+         .populate('comments.author', 'username fullName name email');
+
+        if (!updatedPost) {
             return res.status(404).json({ message: "Post not found" });
         }
-        return res.status(200).json({ message: "Comment added successfully" });
+
+        return res.status(200).json({
+            message: "Comment added successfully",
+            post: updatedPost
+        });
     } catch (err) {
         return res.status(500).json({ message: err.message });
     }
@@ -93,7 +104,8 @@ export const commentOnPost = async (req, res) => {
 export const getCommunityPosts = async (req, res) => {
     try {
         const communityPosts = await CommunityPost.find()
-            .populate('author', 'name email')
+            .populate('author', 'username fullName name email')
+            .populate('comments.author', 'username fullName name email')
             .sort({ createdAt: -1 });
 
         res.status(200).json(communityPosts);
