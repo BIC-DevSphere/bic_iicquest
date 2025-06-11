@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import courseRoutes from './routes/courseRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import userProgressRoutes from './routes/userProgressRoutes.js';
+import communityPostRoutes from './routes/communityPostRoutes.js';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/progress', userProgressRoutes);
+app.use('/api/post', communityPostRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
