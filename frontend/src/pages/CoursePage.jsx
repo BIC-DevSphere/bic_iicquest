@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import dummyCourseDataResponse from "../data/dummyCourseDataResponse.json";
+import { useNavigate, useParams } from "react-router-dom";
+// import dummyCourseDataResponse from "../data/dummyCourseDataResponse.json";
 import { Link } from "react-router-dom";
+import axios from "axios";
+import { API_ENDPOINTS } from "@/configs/apiConfigs.js";
 
 const CoursePage = () => {
   const { courseId } = useParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  // const courseId = "68497561769d90b44f86367e";
 
   useEffect(() => {
     const fetchCourseDetails = async () => {
       try {
-        // const response = await fetch(`/api/courses/${courseId}`);
-        // if (!response.ok) {
-        //   throw new Error('Failed to fetch course details');
-        // }
-        // const data = await response.json();
-        const data = dummyCourseDataResponse;
-        setCourse(data);
+        // const response = await axios.get(`${API_ENDPOINTS.getcoursesInfo}/${courseId}/chapters`);
+        const response = await axios.get(`${API_ENDPOINTS.getCoursesInfo}/${courseId}`);
+        // const data = dummyCourseDataResponse;
+        console.log(response.data);
+        setCourse(response.data);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -55,8 +57,7 @@ const CoursePage = () => {
 
   return (
     <div className="course-page-container mx-auto px-4 py-8">
-
-        {/* {Breadcrumb} */}
+      {/* {Breadcrumb} */}
       <div className="course-page-breadcrumbs">
         <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-6">
           <Link to="/" className="hover:text-blue-600 transition-colors">
@@ -111,9 +112,12 @@ const CoursePage = () => {
             </div>
 
             <div className="md:w-1/3">
-            <img src={course.thumbNail} alt={course.title} />
+              <img src={course.thumbNail} alt={course.title} />
               <div className="p-4 border rounded-lg">
-                <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
+                <button
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/course-lessons/${courseId}`)}
+                >
                   Start Learning
                 </button>
                 <p className="text-center text-sm text-gray-500 mt-2">
@@ -145,56 +149,24 @@ const CoursePage = () => {
               <h2 className="text-xl font-semibold mb-4">Course Content</h2>
               <div className="space-y-4">
                 {course.chapters.map((chapter, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-semibold">
-                        Chapter {chapter.order}: {chapter.title}
-                      </h3>
-                    </div>
-                    <p className="text-gray-600 mb-3">{chapter.description}</p>
-
-                    {/* Chapter Prerequisites */}
-                    {chapter.prerequisites && chapter.prerequisites.length > 0 && (
-                      <div className="mb-3">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-1">Prerequisites:</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {chapter.prerequisites.map((prereq, idx) => (
-                            <span
-                              key={idx}
-                              className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
-                            >
-                              {prereq}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Chapter Levels */}
-                    <div className="space-y-3">
-                      {chapter.levels.map((level, levelIndex) => (
-                        <div key={levelIndex} className="border-t pt-3">
-                          <div className="flex justify-between items-center mb-2">
-                            <h4 className="font-medium">
-                              Level {level.order}: {level.title}
-                            </h4>
-                            <span className="text-sm text-gray-500">{level.estimatedTime} min</span>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{level.description}</p>
-
-                          {/* Level Content */}
-                          <div className="space-y-2">
-                            {level.content.map((content, contentIndex) => (
-                              <div key={contentIndex} className="text-sm">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-500">▶</span>
-                                  <span>{content.title}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                  <div
+                    key={chapter._id}
+                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <h3 className="font-semibold text-lg mb-2">
+                      Chapter {index + 1}: {chapter.title}
+                    </h3>
+                    <p className="text-gray-600 mb-2">{chapter.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500">
+                        {chapter.levels.length} levels
+                      </span>
+                      <Link
+                        to={`/course/${courseId}/chapter/${chapter._id}`}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        View Chapter
+                      </Link>
                     </div>
                   </div>
                 ))}
