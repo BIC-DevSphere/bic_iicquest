@@ -1,92 +1,131 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Grid, List } from "lucide-react";
 import CourseCard from "../components/CourseCard";
 import SearchFilter from "../components/SearchFilter";
+import { getAllCourses, getCoursesByCategory, searchCourses } from "@/services/courseService";
 
-const courses = [
-  {
-    id: 1,
-    title: "Complete React Development Bootcamp",
-    description:
-      "Master React from basics to advanced concepts. Build real-world projects with hooks, context, and modern patterns.",
-    category: "Frontend Development",
-    level: "Beginner",
-    duration: "8 weeks",
-    students: "245 students",
-    price: "Free",
-    isCollaborative: true,
-    isFree: true,
-  },
-  {
-    id: 2,
-    title: "Node.js & Express API Mastery",
-    description:
-      "Build scalable REST APIs with Node.js, Express, and MongoDB. Learn authentication, testing, and deployment.",
-    category: "Backend Development",
-    level: "Intermediate",
-    duration: "6 weeks",
-    students: "189 students",
-    price: "$49",
-    isCollaborative: true,
-    isFree: false,
-  },
-  {
-    id: 3,
-    title: "Python Programming Fundamentals",
-    description:
-      "Learn Python from scratch with hands-on projects. Perfect for beginners starting their programming journey.",
-    category: "Programming",
-    level: "Beginner",
-    duration: "4 weeks",
-    students: "312 students",
-    price: "Free",
-    isCollaborative: false,
-    isFree: true,
-  },
-  {
-    id: 4,
-    title: "MERN Stack Project Workshop",
-    description:
-      "Build a complete social media app using MongoDB, Express, React, and Node.js with real-time features.",
-    category: "Full Stack",
-    level: "Advanced",
-    duration: "12 weeks",
-    students: "156 students",
-    price: "$89",
-    isCollaborative: true,
-    isFree: false,
-  },
-  {
-    id: 5,
-    title: "React Native Mobile Apps",
-    description:
-      "Create cross-platform mobile applications with React Native. Build and deploy to both iOS and Android.",
-    category: "Mobile Development",
-    level: "Intermediate",
-    duration: "10 weeks",
-    students: "98 students",
-    price: "$69",
-    isCollaborative: false,
-    isFree: false,
-  },
-  {
-    id: 6,
-    title: "Database Design & SQL Mastery",
-    description:
-      "Master database concepts, SQL queries, and database design principles with hands-on practice.",
-    category: "Database",
-    level: "Beginner",
-    duration: "5 weeks",
-    students: "203 students",
-    price: "Free",
-    isCollaborative: true,
-    isFree: true,
-  },
-];
+// const courses = [
+//   {
+//     id: 1,
+//     title: "Complete React Development Bootcamp",
+//     description:
+//       "Master React from basics to advanced concepts. Build real-world projects with hooks, context, and modern patterns.",
+//     category: "Frontend Development",
+//     level: "Beginner",
+//     duration: "8 weeks",
+//     students: "245 students",
+//     price: "Free",
+//     isCollaborative: true,
+//     isFree: true,
+//   },
+//   {
+//     id: 2,
+//     title: "Node.js & Express API Mastery",
+//     description:
+//       "Build scalable REST APIs with Node.js, Express, and MongoDB. Learn authentication, testing, and deployment.",
+//     category: "Backend Development",
+//     level: "Intermediate",
+//     duration: "6 weeks",
+//     students: "189 students",
+//     price: "$49",
+//     isCollaborative: true,
+//     isFree: false,
+//   },
+//   {
+//     id: 3,
+//     title: "Python Programming Fundamentals",
+//     description:
+//       "Learn Python from scratch with hands-on projects. Perfect for beginners starting their programming journey.",
+//     category: "Programming",
+//     level: "Beginner",
+//     duration: "4 weeks",
+//     students: "312 students",
+//     price: "Free",
+//     isCollaborative: false,
+//     isFree: true,
+//   },
+//   {
+//     id: 4,
+//     title: "MERN Stack Project Workshop",
+//     description:
+//       "Build a complete social media app using MongoDB, Express, React, and Node.js with real-time features.",
+//     category: "Full Stack",
+//     level: "Advanced",
+//     duration: "12 weeks",
+//     students: "156 students",
+//     price: "$89",
+//     isCollaborative: true,
+//     isFree: false,
+//   },
+//   {
+//     id: 5,
+//     title: "React Native Mobile Apps",
+//     description:
+//       "Create cross-platform mobile applications with React Native. Build and deploy to both iOS and Android.",
+//     category: "Mobile Development",
+//     level: "Intermediate",
+//     duration: "10 weeks",
+//     students: "98 students",
+//     price: "$69",
+//     isCollaborative: false,
+//     isFree: false,
+//   },
+//   {
+//     id: 6,
+//     title: "Database Design & SQL Mastery",
+//     description:
+//       "Master database concepts, SQL queries, and database design principles with hands-on practice.",
+//     category: "Database",
+//     level: "Beginner",
+//     duration: "5 weeks",
+//     students: "203 students",
+//     price: "Free",
+//     isCollaborative: true,
+//     isFree: true,
+//   },
+// ];
 
 const CourseCatalogPage = () => {
   const [viewMode, setViewMode] = useState("grid");
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setLoading(true);
+        let data;
+        if (searchQuery) {
+          data = await searchCourses(searchQuery);
+        } else if (selectedCategory !== "all") {
+          data = await getCoursesByCategory(selectedCategory);
+        } else {
+          data = await getAllCourses();
+        }
+        setCourses(data);
+        setError(null);
+      } catch (err) {
+        setError(err.message || "Failed to fetch courses");
+        console.error("Error fetching courses:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, [selectedCategory, searchQuery]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <div className="min-h-screen mt-10">
@@ -129,13 +168,11 @@ const CourseCatalogPage = () => {
 
           <div
             className={`grid gap-6 ${
-              viewMode === "grid"
-                ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
-                : "grid-cols-1"
+              viewMode === "grid" ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
             }`}
           >
             {courses.map((course) => (
-              <CourseCard key={course.id} {...course} />
+              <CourseCard key={course._id} course={course}  />
             ))}
           </div>
 
