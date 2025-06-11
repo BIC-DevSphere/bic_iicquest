@@ -272,3 +272,16 @@ export const applyForProject = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const projectGroupChat = async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const foundProject = await Project.findById(projectId);
+    if(!foundProject) return res.status(404).json({ message: 'Project not found' });
+
+    const chat = foundProject.chat;
+    res.status(200).json(chat);
+  }catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
