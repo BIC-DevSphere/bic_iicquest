@@ -115,11 +115,6 @@ const CourseSchema = new mongoose.Schema({
   tags: [{ 
     type: String 
   }],
-  creator: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
   estimatedHours: {
     type: Number,
     required: true

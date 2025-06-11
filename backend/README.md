@@ -63,6 +63,115 @@ npm start
 - Public access
 - Response: Array of course objects
 
+### Course Navigation APIs
+
+#### Get All Chapters
+- **GET** `/api/courses/:courseId/chapters`
+- Returns all chapters of a course, sorted by order
+- Public access
+- Response: Array of chapter objects
+```json
+[
+  {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    "prerequisites": ["string"],
+    "levels": ["Level"]
+  }
+]
+```
+
+#### Get Chapter Details
+- **GET** `/api/courses/:courseId/chapters/:chapterId`
+- Returns a specific chapter with its levels
+- Public access
+- Response: Chapter object with full details
+
+#### Get Chapter Levels
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels`
+- Returns all levels in a chapter, sorted by order
+- Public access
+- Response: Array of level objects
+```json
+[
+  {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    "estimatedTime": "number",
+    "starterCode": "string",
+    "content": ["Content"],
+    "testCases": ["TestCase"]
+  }
+]
+```
+
+#### Get Level Details
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId`
+- Returns a specific level with its content and test cases
+- Public access
+- Response: Complete level object
+
+#### Get Level Content
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/content`
+- Returns all content items of a level, sorted by order
+- Public access
+- Response: Array of content objects
+```json
+[
+  {
+    "title": "string",
+    "content": {
+      "text": "string",
+      "media": "string",
+      "examples": ["string"]
+    },
+    "order": "number"
+  }
+]
+```
+
+#### Get Level Test Cases
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/test-cases`
+- Returns all test cases of a level
+- Public access
+- Response: Array of test case objects
+```json
+[
+  {
+    "description": "string",
+    "testCode": "string",
+    "expectedOutput": "string",
+    "hint": "string"
+  }
+]
+```
+
+#### Get Next Level
+- **GET** `/api/courses/:courseId/chapters/:chapterId/levels/:levelId/next`
+- Returns the next level in sequence (handles chapter transitions)
+- Public access
+- Response: Next level and chapter information
+```json
+{
+  "nextLevel": {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    "estimatedTime": "number",
+    // ... other level fields
+  },
+  "nextChapter": {
+    "title": "string",
+    "description": "string",
+    "order": "number",
+    // ... other chapter fields
+  } | null,
+  "courseCompleted": "boolean"
+}
+```
+
 ### Course Creation APIs
 
 #### Create New Course

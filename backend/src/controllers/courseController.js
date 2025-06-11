@@ -244,4 +244,189 @@ export const updateCourseStatus = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
+};
+
+// Get all chapters of a course
+export const getChapters = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Sort chapters by order
+    const chapters = course.chapters.sort((a, b) => a.order - b.order);
+    res.status(200).json(chapters);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get a specific chapter
+export const getChapterById = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    res.status(200).json(chapter);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all levels of a chapter
+export const getLevels = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    // Sort levels by order
+    const levels = chapter.levels.sort((a, b) => a.order - b.order);
+    res.status(200).json(levels);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get a specific level
+export const getLevelById = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    const level = chapter.levels.id(req.params.levelId);
+    if (!level) {
+      return res.status(404).json({ message: 'Level not found' });
+    }
+
+    res.status(200).json(level);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all content of a level
+export const getLevelContent = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    const level = chapter.levels.id(req.params.levelId);
+    if (!level) {
+      return res.status(404).json({ message: 'Level not found' });
+    }
+
+    // Sort content by order
+    const content = level.content.sort((a, b) => a.order - b.order);
+    res.status(200).json(content);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get test cases of a level
+export const getLevelTestCases = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    const level = chapter.levels.id(req.params.levelId);
+    if (!level) {
+      return res.status(404).json({ message: 'Level not found' });
+    }
+
+    res.status(200).json(level.testCases);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get next level
+export const getNextLevel = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    const chapter = course.chapters.id(req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+
+    const currentLevel = chapter.levels.id(req.params.levelId);
+    if (!currentLevel) {
+      return res.status(404).json({ message: 'Level not found' });
+    }
+
+    // Find next level in current chapter
+    const sortedLevels = chapter.levels.sort((a, b) => a.order - b.order);
+    const currentIndex = sortedLevels.findIndex(level => level._id.equals(currentLevel._id));
+    
+    if (currentIndex < sortedLevels.length - 1) {
+      // Next level exists in current chapter
+      res.status(200).json({
+        nextLevel: sortedLevels[currentIndex + 1],
+        nextChapter: null
+      });
+    } else {
+      // Check for next chapter
+      const sortedChapters = course.chapters.sort((a, b) => a.order - b.order);
+      const currentChapterIndex = sortedChapters.findIndex(ch => ch._id.equals(chapter._id));
+      
+      if (currentChapterIndex < sortedChapters.length - 1) {
+        // Next chapter exists
+        const nextChapter = sortedChapters[currentChapterIndex + 1];
+        const nextLevel = nextChapter.levels.sort((a, b) => a.order - b.order)[0];
+        res.status(200).json({
+          nextLevel,
+          nextChapter
+        });
+      } else {
+        // Course completed
+        res.status(200).json({
+          nextLevel: null,
+          nextChapter: null,
+          courseCompleted: true
+        });
+      }
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }; 
