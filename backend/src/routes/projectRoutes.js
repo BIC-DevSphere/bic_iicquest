@@ -8,7 +8,8 @@ import {
   getProjectsByTechnology,
   getUserProjects,
   updateProjectStatus,
-  applyForProject
+  applyForProject,
+  viewAllApplications
 } from '../controllers/projectController.js';
 import { auth } from '../middleware/auth.js';
 
@@ -17,6 +18,7 @@ const router = express.Router();
 // Public routes
 router.get('/', getAllProjects);
 router.get('/:id', getProjectById);
+router.get('/application/:id', viewAllApplications);
 router.get('/technology/:technology', getProjectsByTechnology);
 
 // Protected routes
@@ -26,6 +28,11 @@ router.put('/:id', updateProject);
 router.post('/:id/apply', applyForRole);
 router.get('/user/projects', getUserProjects);
 router.post('/user/projects/apply/:id', applyForProject);
+
+// Chat Route
+router.post('/project/:id/groupchat', createProjectGroupChat);
+router.post('/groupchat/:id/message', sendMessage);
+router.delete('/groupchat/:groupChatId/message/:messageId', authMiddleware, deleteMessage);
 router.patch('/:id/status', updateProjectStatus);
 
 export default router; 

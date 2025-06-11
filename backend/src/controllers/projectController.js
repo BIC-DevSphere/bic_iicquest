@@ -1,6 +1,7 @@
 import Project from '../models/Project.js';
 import UserProgress from '../models/UserProgress.js';
 import User from '../models/User.js';
+import GroupChat from '../models/GroupChat.js';
 
 // Check if user can create project (completed 2 courses)
 const canCreateProject = async (userId) => {
@@ -252,7 +253,7 @@ export const applyForProject = async (req, res) => {
         isSkilled = false;
       }
     }
-    
+
     if(!isSkilled) return res.status(400).json({ message: 'Your don\'t have enough skills'});
     
     if(!projectId) return res.status(400).json({ message: 'Project ID is required' }); 
@@ -275,15 +276,136 @@ export const applyForProject = async (req, res) => {
   }
 };
 
-export const projectGroupChat = async (req, res) => {
+export const viewAllApplications = async (req, res) => {
   try {
     const projectId = req.params.id;
+    if(!projectId) return res.status(400).json({ message: 'Project ID is required' });
     const foundProject = await Project.findById(projectId);
     if(!foundProject) return res.status(404).json({ message: 'Project not found' });
 
-    const chat = foundProject.chat;
-    res.status(200).json(chat);
+    const applications = foundProject.applications;
+    res.status(200).json(applications);
   }catch (error) {
     res.status(400).json({ message: error.message });
   }
 }
+
+export const createProjectGroupChat = async (req, res) => {
+  try {
+    const projectId = req.params.id;
+
+    const foundProject = await Project.findById(projectId);
+    if (!foundProject) return res.status(404).json({ message: 'Project not found' });
+
+    const adminId = req.user.id;
+
+    if (foundProject.creator.toString() !== adminId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to create group chat' });
+    }
+
+    // Get members from request body
+    const { members } = req.body;
+
+    if (!Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ message: 'Members array is required' });
+    }
+
+    // Validate each user exists
+    for (const memberId of members) {
+      const user = await User.findById(memberId);
+      if (!user) return res.status(404).json({ message: `User not found: ${memberId}` });
+    }
+
+    // Add admin also to members if not included
+    if (!members.includes(adminId)) {
+      members.push(adminId);
+    }
+
+    const groupChat = await GroupChat.create({
+      groupName: foundProject.title,
+      adminId,
+      members,
+      isActive: true
+    });
+
+    foundProject.groupChatId = groupChat._id;
+    await foundProject.save();
+
+    res.status(200).json(groupChat);
+  } catch (error) {
+    console.error(error);  // good for debugging
+    res.status(400).json({ message: error.message });
+  }
+}
+
+export const sendMessage = async (req, res) => {
+  try {
+    const senderId = req.user.id;
+    const { message } = req.body;
+    const groupChatId = req.params.id;
+
+    if (!groupChatId || !message) {
+      return res.status(400).json({ message: 'Group chat ID and message are required' });
+    }
+
+    const groupChat = await GroupChat.findById(groupChatId);
+    if (!groupChat) {
+      return res.status(404).json({ message: 'Group chat not found' });
+    }
+
+    // Check if sender is a member
+    const isMember = groupChat.members.some(member => member.userId.toString() === senderId.toString());
+
+    if (!isMember) {
+      return res.status(403).json({ message: 'You are not a member of this group chat' });
+    }
+
+    // Create new message object
+    const newMessage = {
+      userId: senderId,
+      message,
+    };
+
+    groupChat.messages.push(newMessage);
+    await groupChat.save();
+
+    res.status(200).json(newMessage);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const groupChatId = req.params.groupChatId;
+    const messageId = req.params.messageId;
+
+    // Find group chat
+    const groupChat = await GroupChat.findById(groupChatId);
+    if (!groupChat) {
+      return res.status(404).json({ message: 'Group chat not found' });
+    }
+
+    // Find message
+    const message = groupChat.messages.id(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Check permissions: either sender or admin
+    if (message.userId.toString() !== userId.toString() && groupChat.adminId.toString() !== userId.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to delete this message' });
+    }
+
+    // Remove message
+    message.remove();
+    await groupChat.save();
+
+    res.status(200).json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};

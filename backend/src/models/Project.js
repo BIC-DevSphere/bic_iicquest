@@ -103,6 +103,11 @@ const ProjectSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  groupChatId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GroupChat',
+    default: null
+  },
   collaborators: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
