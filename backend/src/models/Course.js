@@ -1,8 +1,7 @@
 import mongoose from 'mongoose';
-import Schema from mongoose.Schema;
 
 // Schema for content within a level
-const ContentSchema = new Schema({
+const ContentSchema = new mongoose.Schema({
   title: { 
     type: String, 
     required: true 
@@ -27,7 +26,7 @@ const ContentSchema = new Schema({
 });
 
 // Schema for test cases within a level
-const TestCaseSchema = new Schema({
+const TestCaseSchema = new mongoose.Schema({
   description: { 
     type: String, 
     required: true 
@@ -46,7 +45,7 @@ const TestCaseSchema = new Schema({
 });
 
 // Schema for individual levels within a chapter
-const LevelSchema = new Schema({
+const LevelSchema = new mongoose.Schema({
   title: { 
     type: String, 
     required: true 
@@ -79,7 +78,7 @@ const LevelSchema = new Schema({
 });
 
 // Schema for chapters within a course
-const ChapterSchema = new Schema({
+const ChapterSchema = new mongoose.Schema({
   title: { 
     type: String, 
     required: true 
@@ -99,7 +98,7 @@ const ChapterSchema = new Schema({
 });
 
 // Main course schema
-const CourseSchema = new Schema({
+const CourseSchema = new mongoose.Schema({
   title: { 
     type: String, 
     required: true 
@@ -117,7 +116,7 @@ const CourseSchema = new Schema({
     type: String 
   }],
   creator: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
@@ -152,4 +151,4 @@ CourseSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('Course', CourseSchema); 
+export default mongoose.model('Course', CourseSchema);
