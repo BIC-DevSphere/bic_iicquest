@@ -409,3 +409,58 @@ export const deleteMessage = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const updateMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const groupChatId = req.params.groupChatId;
+    const messageId = req.params.messageId;
+    const { message: newMessageText } = req.body;
+
+    // Find group chat
+    const groupChat = await GroupChat.findById(groupChatId);
+    if (!groupChat) {
+      return res.status(404).json({ message: 'Group chat not found' });
+    }
+
+    // Find message
+    const message = groupChat.messages.id(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Check permissions: only sender or admin can update
+    if (message.userId.toString() !== userId.toString() && groupChat.adminId.toString() !== userId.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to edit this message' });
+    }
+
+    // Update message
+    message.message = newMessageText;
+    message.isEdited = true;
+    message.updatedAt = Date.now();
+
+    await groupChat.save();
+
+    res.status(200).json({ message: 'Message updated successfully', updatedMessage: message });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const getMessages = async (req, res) => {
+  try {
+    const groupChatId = req.params.groupChatId;
+
+    // Find group chat
+    const groupChat = await GroupChat.findById(groupChatId).populate('messages.userId', 'name email');
+    if (!groupChat) {
+      return res.status(404).json({ message: 'Group chat not found' });
+    }
+
+    res.status(200).json(groupChat.messages);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};

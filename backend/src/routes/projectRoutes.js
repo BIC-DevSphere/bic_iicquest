@@ -9,7 +9,12 @@ import {
   getUserProjects,
   updateProjectStatus,
   applyForProject,
-  viewAllApplications
+  viewAllApplications,
+  updateMessage,
+  deleteMessage,
+  createProjectGroupChat,
+  sendMessage,
+  getMessages
 } from '../controllers/projectController.js';
 import { auth } from '../middleware/auth.js';
 
@@ -31,8 +36,10 @@ router.post('/user/projects/apply/:id', applyForProject);
 
 // Chat Route
 router.post('/project/:id/groupchat', createProjectGroupChat);
+router.get('/groupchat/:groupChatId/messages', getMessages);
 router.post('/groupchat/:id/message', sendMessage);
-router.delete('/groupchat/:groupChatId/message/:messageId', authMiddleware, deleteMessage);
+router.put('/groupchat/:groupChatId/message/:messageId', updateMessage);
+router.delete('/groupchat/:groupChatId/message/:messageId', deleteMessage);
 router.patch('/:id/status', updateProjectStatus);
 
 export default router; 
