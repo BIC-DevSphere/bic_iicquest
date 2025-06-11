@@ -245,16 +245,22 @@ export const applyForProject = async (req, res) => {
     const projectId = req.params.id;
     const { message } = req.body;
     
-    const foundProject = await Project.findById(projectId);
-    if(!foundProject) return res.status(404).json({ message: 'Project not found' });
+    if (!projectId) {
+      return res.status(400).json({ message: 'Project ID is required' });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
 
     // Check if user is the project creator (owner)
-    if (foundProject.creator.toString() === userId) {
+    if (project.creator.toString() === userId) {
       return res.status(400).json({ message: 'You cannot apply to your own project' });
     }
 
     // Check if user already applied
-    const existingApplication = foundProject.applications.find(
+    const existingApplication = project.applications.find(
       app => app.userId.toString() === userId
     );
     if (existingApplication) {
@@ -262,7 +268,7 @@ export const applyForProject = async (req, res) => {
     }
 
     // Check if user is already a collaborator
-    const isCollaborator = foundProject.collaborators.some(
+    const isCollaborator = project.collaborators.some(
       collab => collab.user.toString() === userId
     );
     if (isCollaborator) {
@@ -271,22 +277,24 @@ export const applyForProject = async (req, res) => {
 
     // Get user's earned technologies
     const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     const userTechnologies = user.earnedTechnologies.map(tech => ({ name: tech.name }));
-    if(!isSkilled) return res.status(400).json({ message: 'Your don\'t have enough skills'});
-    
-    if(!projectId) return res.status(400).json({ message: 'Project ID is required' }); 
-    const foundProject = await Project.findById(req.params.id);
-    if(!foundProject) return res.status(404).json({ message: 'Project not found' });
+    if (!userTechnologies.length) {
+      return res.status(400).json({ message: 'You don\'t have enough skills' });
+    }
 
     const application = {
       userId,
       message: message || '',
       technologies: userTechnologies,
       status: 'pending'
-    }
+    };
 
-    foundProject.applications.push(application);
-    await foundProject.save();
+    project.applications.push(application);
+    await project.save();
 
     res.status(200).json({ message: 'Application submitted successfully' });
   } catch (error) {
@@ -378,7 +386,12 @@ export const updateApplicationStatus = async (req, res) => {
     
     res.status(200).json(updatedProject);
   } catch (error) {
-=======
+    res.status(400).json({ message: error.message });
+  }
+};
+
+
+
 export const createProjectGroupChat = async (req, res) => {
   try {
     const projectId = req.params.id;

@@ -11,7 +11,7 @@ import {
   applyForProject,
   getProjectApplications,
   updateApplicationStatus
-
+,
   viewAllApplications,
   updateMessage,
   deleteMessage,
