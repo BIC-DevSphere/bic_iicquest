@@ -1,10 +1,9 @@
 import mongoose from 'mongoose';
-import Schema from mongoose.Schema;
 
 // Schema for tracking test case completion
-const TestCaseProgressSchema = new Schema({
+const TestCaseProgressSchema = new mongoose.Schema({
   testCase: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     required: true
   },
   passed: {
@@ -24,9 +23,9 @@ const TestCaseProgressSchema = new Schema({
 });
 
 // Schema for tracking level progress
-const LevelProgressSchema = new Schema({
+const LevelProgressSchema = new mongoose.Schema({
   level: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     required: true
   },
   status: {
@@ -51,9 +50,9 @@ const LevelProgressSchema = new Schema({
 });
 
 // Schema for tracking chapter progress
-const ChapterProgressSchema = new Schema({
+const ChapterProgressSchema = new mongoose.Schema({
   chapter: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     required: true
   },
   status: {
@@ -75,14 +74,14 @@ const ChapterProgressSchema = new Schema({
 });
 
 // Main user progress schema
-const UserProgressSchema = new Schema({
+const UserProgressSchema = new mongoose.Schema({
   user: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   course: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
     required: true
   },
@@ -140,4 +139,4 @@ UserProgressSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('UserProgress', UserProgressSchema); 
+export default mongoose.model('UserProgress', UserProgressSchema); 
