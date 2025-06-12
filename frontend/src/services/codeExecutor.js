@@ -203,7 +203,6 @@ export const testCode = async (userCode, testCases, language = 'python') => {
   return results;
 };
 
-// Alternative: Use a free service like Piston API
 const PISTON_API_URL = 'https://emkc.org/api/v2/piston';
 
 export const executeCodeWithPiston = async (code, language = 'python', version = '3.10.0') => {
