@@ -3,8 +3,13 @@ import multer from "multer";
 import cloudinaryModule from 'cloudinary';
 const cloudinary = cloudinaryModule.v2;
 import streamifier from "streamifier";
+import { GoogleGenAI } from '@google/genai';
+import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config();
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
 
 // Cloudinary config
 cloudinary.config({
@@ -36,7 +41,7 @@ const uploadToCloudinary = (buffer) => {
 export const createCommunityPost = async (req, res) => {
     try {
         const { title, body } = req.body;
-        if(!title || !body) {
+        if (!title || !body) {
             return res.status(400).json({ message: "Title and body are required" });
         }
 
@@ -55,6 +60,33 @@ export const createCommunityPost = async (req, res) => {
         });
 
         await newCommunityPost.save();
+
+        const prompt = `${title}\n${body}\nGive me a brief answer in maximum 150 words.`;
+
+        const geminiResponse = await ai.models.generateContent({
+            model: 'gemini-2.0-flash-001',
+            contents: prompt,
+        });
+
+        const aiText = geminiResponse.text;
+
+        // 3️⃣ Create AI comment object
+        const aiComment = {
+            body: aiText,
+            author: process.env.GEMINI_BOT_USER_ID, // 👈 AI author ID (create a dummy user for Gemini)
+            postId: newCommunityPost._id,
+            likes: 0,
+            dislikes: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        // 4️⃣ Push AI comment to post's comments array
+        newCommunityPost.comments.push(aiComment);
+        newCommunityPost.totalComments = newCommunityPost.comments.length;
+
+        await newCommunityPost.save();
+
         return res.status(201).json(newCommunityPost);
     } catch (error) {
         console.error(error);  // log for debugging
@@ -64,7 +96,7 @@ export const createCommunityPost = async (req, res) => {
 
 export const commentOnPost = async (req, res) => {
     try {
-        if(!req.body.body) {
+        if (!req.body.body) {
             return res.status(400).json({ message: "Comment body is required" });
         }
 
@@ -73,7 +105,7 @@ export const commentOnPost = async (req, res) => {
             req.params.id,
             {
                 $push: {
-                    comments: { 
+                    comments: {
                         body: req.body.body,
                         author: req.user.id,
                         post: req.params.id,
@@ -85,7 +117,7 @@ export const commentOnPost = async (req, res) => {
             },
             { new: true }
         ).populate('author', 'username fullName name email')
-         .populate('comments.author', 'username fullName name email');
+            .populate('comments.author', 'username fullName name email');
 
         if (!updatedPost) {
             return res.status(404).json({ message: "Post not found" });

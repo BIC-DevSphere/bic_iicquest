@@ -1,26 +1,32 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from '@google/genai';
 
-const genAI = new GoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export const askGemini = async (req, res) => {
-  try {
-    const { title, body, postId } = req.body;
+    try {
+        const { title, body, postId } = req.body;
 
-    if (!title || !body || !postId)
-      return res.status(400).json({ message: "PostId, title and body are required" });
+        if (!title || !body || !postId)
+            return res.status(400).json({ message: "PostId, title and body are required" });
 
-    const prompt = `${title}\n${body}\nGive me a brief answer in maximum 150 words.`;
+        const foundPost = await Post.findById(postId);
+        if (!foundPost) return res.status(404).json({ message: "Post not found" });
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
+        const prompt = `${title}\n${body}\nGive me a brief answer in maximum 150 words.`;
 
-    res.status(200).json({ result: response });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
-  }
+        // const result = await model.generateContent(prompt);
+        // const response = result.response.text();
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash-001',
+            contents: prompt,
+        });
+        console.log(response.text);
+
+        res.status(200).json({ result: response.text });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
 };
