@@ -1,4 +1,4 @@
-import { BookOpenIcon, HomeIcon, FolderGit2, UsersIcon, BriefcaseBusiness, GraduationCap, Sparkles } from "lucide-react";
+import { BookOpenIcon, HomeIcon, FolderGit2, UsersIcon, BriefcaseBusiness, GraduationCap, Sparkles, UserCircle2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -8,6 +8,7 @@ const SidebarItems = [
   { label: "Pair Projects", location: "/pair-projects", icon: <FolderGit2 className="w-5 h-5" /> },
   { label: "Community", location: "/community", icon: <UsersIcon className="w-5 h-5" /> },
   { label: "Jobs", location: "/jobs", icon: <BriefcaseBusiness className="w-5 h-5" /> },
+  { label: "Profile", location: "/profile", icon: <UserCircle2 className="w-5 h-5" /> },
 ];
 
 const SideBar = () => {
