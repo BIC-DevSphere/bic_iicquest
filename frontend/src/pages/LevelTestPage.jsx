@@ -22,7 +22,8 @@ import {
   getChapterById,
   getLevelById,
   getLevelTestCases,
-  getNextLevel
+  getNextLevel,
+  executeTestCases
 } from "@/services/courseService";
 import { 
   getCourseProgress, 
@@ -130,8 +131,16 @@ const LevelTestPage = () => {
   };
 
   const runTests = async () => {
+    // Check for empty code
     if (!userCode.trim()) {
       alert("Please write some code before running tests!");
+      return;
+    }
+
+    // Check for code with only comments
+    const codeWithoutComments = userCode.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '').trim();
+    if (!codeWithoutComments) {
+      alert("Please write some executable code (not just comments) before running tests!");
       return;
     }
 
@@ -153,8 +162,9 @@ const LevelTestPage = () => {
     setCodeHistory(prev => [...prev, codeSnapshot]);
 
     try {
-      // Simulate test execution (in a real app, you'd send this to a backend)
-      const results = await simulateTestExecution(userCode, testCases);
+      // Execute tests on the backend
+      const response = await executeTestCases(courseId, chapterId, levelId, userCode);
+      const results = response.results;
       setTestResults(results);
       
       const allPassed = results.every(result => result.passed);
@@ -166,7 +176,8 @@ const LevelTestPage = () => {
       }
     } catch (error) {
       console.error("Error running tests:", error);
-      alert("Failed to run tests. Please try again.");
+      const errorMessage = error.response?.data?.message || "Failed to run tests. Please try again.";
+      alert(errorMessage);
     } finally {
       setIsTestRunning(false);
     }
@@ -187,31 +198,24 @@ const LevelTestPage = () => {
       });
       
       setShowSubmitConfirm(false);
-      // Show success message or redirect
+      
+      // Show success message
+      alert("Solution submitted successfully! You can now proceed to the next level.");
+      
+      // Optionally navigate to next level if available
+      if (nextLevel?.nextLevel || nextLevel?.courseCompleted) {
+        handleNextLevel();
+      } else {
+        // Navigate back to content page
+        handleBackToContent();
+      }
     } catch (error) {
       console.error("Error submitting solution:", error);
+      alert("Failed to submit solution. Please try again.");
     }
   };
 
-  // Simulate test execution (replace with actual backend call)
-  const simulateTestExecution = async (code, testCases) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const results = testCases.map((testCase, index) => {
-          // Simple simulation - in reality, you'd execute the code against test cases
-          const passed = Math.random() > 0.3; // 70% pass rate for demo
-          return {
-            testCase: testCase.description,
-            expected: testCase.expectedOutput,
-            actual: passed ? testCase.expectedOutput : "Error: Function not implemented",
-            passed,
-            hint: testCase.hint
-          };
-        });
-        resolve(results);
-      }, 2000);
-    });
-  };
+
 
   const handleBackToContent = () => {
     navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}`);
@@ -307,11 +311,16 @@ const LevelTestPage = () => {
                 </span>
               </div>
               
-              {allTestsPassed && (
-                <Badge variant="default" className="bg-green-600">
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  All Tests Passed!
-                </Badge>
+              {testResults.length > 0 && (
+                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                  <Terminal className="w-5 h-5 text-gray-600" />
+                  <span className="text-gray-800 font-semibold">
+                    {testResults.filter(r => r.passed).length}/{testResults.length} tests passing
+                  </span>
+                  {allTestsPassed && (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -372,9 +381,9 @@ const LevelTestPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {testResults.map((result, index) => (
+                    {testResults && testResults.length > 0 ? testResults.map((result, index) => (
                       <div 
-                        key={index} 
+                        key={`test-result-${index}`} 
                         className={`border rounded-lg p-4 ${
                           result.passed ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
                         }`}
@@ -395,17 +404,25 @@ const LevelTestPage = () => {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="text-gray-600">Expected:</p>
-                            <code className="text-green-600 font-mono">{result.expected}</code>
+                            <code className="text-green-600 font-mono block bg-gray-50 p-2 rounded">{result.expected}</code>
                           </div>
                           <div>
                             <p className="text-gray-600">Actual:</p>
-                            <code className={`font-mono ${
-                              result.passed ? 'text-green-600' : 'text-red-600'
+                            <code className={`font-mono block p-2 rounded ${
+                              result.passed ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
                             }`}>
                               {result.actual}
                             </code>
                           </div>
                         </div>
+                        
+                        {result.error && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
+                            <p className="text-sm text-red-800">
+                              <strong>Error:</strong> {result.error}
+                            </p>
+                          </div>
+                        )}
                         
                         {!result.passed && result.hint && (
                           <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -416,7 +433,12 @@ const LevelTestPage = () => {
                           </div>
                         )}
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center text-gray-500 py-8">
+                        <Terminal className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                        <p>Run tests to see results here</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -450,6 +472,21 @@ const LevelTestPage = () => {
                           Run Tests
                         </>
                       )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setUserCode(level.starterCode || '');
+                        setTestResults([]);
+                        setAllTestsPassed(false);
+                        setTestAttempts(0);
+                        setCurrentHintIndex(0);
+                        setCodeHistory([]);
+                      }}
+                      disabled={isTestRunning}
+                      className="flex items-center gap-2"
+                    >
+                      Reset Code
                     </Button>
                   </div>
                 </div>
