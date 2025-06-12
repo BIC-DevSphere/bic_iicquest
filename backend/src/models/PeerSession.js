@@ -12,7 +12,7 @@ const messageSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['message', 'system', 'question', 'invitation', 'achievement', 'hint', 'action'],
+    enum: ['message', 'system', 'question', 'invitation', 'achievement', 'hint', 'action', 'test_result', 'test_completion', 'code_sync', 'test_invitation', 'test_acceptance', 'test_decline', 'test_progress', 'competition_start'],
     default: 'message'
   },
   timestamp: {

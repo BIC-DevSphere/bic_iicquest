@@ -1,253 +1,321 @@
-# IIC Quest - Interactive Learning Platform
+# UpTogether
 
-IIC Quest is a comprehensive interactive learning platform designed to provide structured programming courses, collaborative project development, and community engagement for learners at all levels.
+A comprehensive full-stack learning platform designed to provide interactive coding education with peer collaboration features, real-time communication, and project-based learning.
 
-## 🌟 Features
+## Table of Contents
 
-### 📚 Learning Management System
-- **Interactive Courses**: Structured courses with chapters, levels, and hands-on coding exercises
-- **Progress Tracking**: Real-time progress monitoring with completion percentages and time tracking
-- **Learning Outcomes**: Clear learning objectives and skill acquisition tracking
-- **Test Cases**: Automated code testing and validation for programming exercises
-- **Adaptive Learning**: Personalized learning paths based on user progress and goals
+- [Overview](#overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the Application](#running-the-application)
+- [API Documentation](#api-documentation)
+- [Database Schema](#database-schema)
+- [WebSocket Events](#websocket-events)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [License](#license)
 
-### 🤝 Collaborative Learning
-- **Pair Programming**: Real-time collaborative coding sessions with peers
-- **Project Collaboration**: Team-based project development with role assignments
-- **Skill Matching**: Smart matching system for finding compatible learning partners
-- **Group Chats**: Integrated communication for project teams
+## Overview
 
-### 🚀 Project Management
-- **Project Creation**: Create and manage collaborative projects with defined roles
-- **Role-based Applications**: Apply for specific roles in projects based on skills
-- **Technology Matching**: Find projects based on preferred technologies
-- **Progress Monitoring**: Track project objectives and weekly goals
-- **Team Management**: Manage collaborators and their contributions
+UpTogether is a modern learning platform that combines traditional course-based learning with collaborative features. The platform enables users to learn programming through structured courses, participate in peer learning sessions, collaborate on projects, and engage with a community of learners.
 
-### 👥 Community Features
-- **Community Posts**: Share knowledge, ask questions, and engage with fellow learners
-- **User Profiles**: Showcase skills, achievements, and learning progress
-- **Badges & Achievements**: Gamified learning experience with rewards
-- **Learning Goals**: Set and track personal learning objectives
+### Key Capabilities
 
-### 💼 Career Development
-- **Job Board**: Browse and apply for relevant job opportunities
-- **Skills Validation**: Demonstrate proficiency through completed projects and courses
-- **Portfolio Building**: Showcase completed projects and acquired skills
+- **Interactive Learning**: Structured courses with chapters, levels, and hands-on coding exercises
+- **Peer Collaboration**: Real-time peer learning sessions with WebSocket communication
+- **Project Management**: Collaborative project creation and management system
+- **Community Features**: Discussion forums and community posts
+- **Progress Tracking**: Comprehensive user progress monitoring and analytics
+- **Skill Assessment**: Integrated testing system with automated evaluation
 
-## 🏗️ Architecture
+## Features
 
-### Backend (Node.js/Express)
-- **RESTful API**: Comprehensive API endpoints for all platform features
-- **MongoDB Database**: Flexible document-based data storage
-- **JWT Authentication**: Secure user authentication and authorization
-- **File Upload**: Support for profile pictures and project assets
-- **Real-time Features**: Socket.io integration for collaborative features
+### Learning Management
+- Structured course catalog with categorized content
+- Multi-level chapter organization with progressive difficulty
+- Interactive coding exercises with test cases
+- Real-time code execution and validation
+- Progress tracking and completion certificates
+- Skill-based learning paths
 
-### Frontend (React + Vite)
-- **Modern React**: Built with React 19 and modern hooks
-- **Responsive Design**: Mobile-first design with Tailwind CSS
-- **Component Library**: Radix UI components for consistent UX
-- **State Management**: Context API and local state management
-- **Routing**: React Router for seamless navigation
-- **Animation**: Framer Motion for smooth user interactions
+### Collaboration Tools
+- Real-time peer learning sessions
+- Project collaboration workspace
+- Group chat functionality
+- Peer invitation system
+- Shared coding environment
 
-## 🛠️ Technology Stack
+### User Management
+- Secure authentication with JWT tokens
+- Comprehensive user profiles with skills and badges
+- Learning goal tracking
+- Achievement system
+- Profile customization with image upload
+
+### Community Features
+- Discussion forums
+- Community posts and interactions
+- Job board integration
+- Peer networking capabilities
+
+## Technology Stack
 
 ### Backend
-- **Runtime**: Node.js
+- **Runtime**: Node.js with ES6 modules
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose ODM
-- **Authentication**: JWT (JSON Web Tokens)
-- **File Storage**: Cloudinary integration
-- **Password Hashing**: bcryptjs
-- **Development**: Nodemon for hot reloading
+- **Authentication**: JSON Web Tokens (JWT)
+- **Real-time Communication**: Socket.IO
+- **File Upload**: Multer with Cloudinary integration
+- **AI Integration**: Google Generative AI
+- **Security**: bcryptjs for password hashing, CORS middleware
 
 ### Frontend
-- **Framework**: React 19
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **UI Components**: Radix UI
-- **HTTP Client**: Axios
+- **Framework**: React 19 with Vite
 - **Routing**: React Router DOM
-- **Notifications**: React Hot Toast
-- **Animation**: Framer Motion
-- **Icons**: Lucide React
+- **UI Components**: Radix UI primitives
+- **Styling**: Tailwind CSS with custom animations
+- **Code Editor**: Monaco Editor
+- **State Management**: React hooks and context
+- **HTTP Client**: Axios
+- **Real-time**: Socket.IO Client
+- **Animations**: Framer Motion
 
-## 📦 Installation & Setup
+### Development Tools
+- **Development Server**: Nodemon
+- **Code Formatting**: Prettier
 
-### Prerequisites
-- Node.js (v16 or higher)
-- MongoDB (local or cloud instance)
-- Git
-
-### Backend Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd bic_iicquest/backend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Environment Configuration**
-   Create a `.env` file in the backend directory:
-   ```env
-   PORT=5000
-   MONGODB_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret_key
-   CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-   CLOUDINARY_API_KEY=your_cloudinary_api_key
-   CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-   ```
-
-4. **Start the server**
-   ```bash
-   # Development mode
-   npm run dev
-   
-   # Production mode
-   npm start
-   ```
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**
-   ```bash
-   cd ../frontend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-4. **Build for production**
-   ```bash
-   npm run build
-   ```
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 bic_iicquest/
 ├── backend/
 │   ├── src/
-│   │   ├── controllers/     # Request handlers
-│   │   ├── models/         # Database schemas
-│   │   ├── routes/         # API route definitions
-│   │   ├── middleware/     # Authentication & validation
-│   │   ├── config/         # Database configuration
-│   │   └── index.js        # Server entry point
+│   │   ├── config/
+│   │   │   └── database.js
+│   │   ├── controllers/
+│   │   │   ├── askGeminiController.js
+│   │   │   ├── communityPostController.js
+│   │   │   ├── courseController.js
+│   │   │   ├── peerLearningController.js
+│   │   │   ├── projectController.js
+│   │   │   ├── userController.js
+│   │   │   └── userProgressController.js
+│   │   ├── middleware/
+│   │   │   ├── auth.js
+│   │   │   └── errorHandler.js
+│   │   ├── models/
+│   │   │   ├── communityPost.js
+│   │   │   ├── Course.js
+│   │   │   ├── GroupChat.js
+│   │   │   ├── PeerInvitation.js
+│   │   │   ├── PeerSession.js
+│   │   │   ├── Project.js
+│   │   │   ├── User.js
+│   │   │   └── UserProgress.js
+│   │   ├── routes/
+│   │   │   ├── communityPostRoutes.js
+│   │   │   ├── courseRoutes.js
+│   │   │   ├── peerLearningRoutes.js
+│   │   │   ├── projectRoutes.js
+│   │   │   ├── userProgressRoutes.js
+│   │   │   └── userRoutes.js
+│   │   ├── sockets/
+│   │   │   └── peerLearningSocket.js
+│   │   └── index.js
 │   ├── package.json
 │   └── README.md
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/         # Page components
-│   │   ├── services/      # API service functions
-│   │   ├── configs/       # Configuration files
-│   │   ├── Layouts/       # Layout components
-│   │   ├── lib/          # Utility functions
-│   │   └── data/         # Static data
+│   │   ├── components/
+│   │   ├── configs/
+│   │   ├── data/
+│   │   ├── Layouts/
+│   │   ├── lib/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── public/
 │   ├── package.json
-│   └── README.md
+│   ├── vite.config.js
+│   └── index.html
 └── README.md
 ```
 
-## 🔗 API Endpoints
+## Prerequisites
 
-### Authentication
-- `POST /api/users/register` - User registration
-- `POST /api/users/login` - User login
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update user profile
+Before setting up the project, ensure you have the following installed:
 
-### Courses
-- `GET /api/courses` - Get all courses
-- `GET /api/courses/:id` - Get course by ID
-- `GET /api/courses/search` - Search courses
-- `GET /api/courses/:courseId/chapters` - Get course chapters
-- `GET /api/courses/:courseId/chapters/:chapterId/levels` - Get chapter levels
+- **Node.js** (version 18.0 or higher)
+- **npm** (version 8.0 or higher)
+- **MongoDB** (version 5.0 or higher)
+- **Git** (for version control)
 
-### Progress Tracking
-- `POST /api/user-progress/initialize` - Initialize course progress
-- `GET /api/user-progress/course/:courseId` - Get course progress
-- `PUT /api/user-progress/level` - Update level progress
-- `PUT /api/user-progress/complete-test` - Complete level test
+### Optional Requirements
+- **MongoDB Compass** (for database visualization)
+- **Postman** (for API testing)
 
-### Projects
-- `GET /api/projects` - Get all projects
-- `POST /api/projects` - Create new project
-- `GET /api/projects/:id` - Get project details
-- `POST /api/projects/:id/apply` - Apply for project role
+## Installation
 
-### Community
-- `GET /api/post` - Get community posts
-- `POST /api/post` - Create new post
-- `POST /api/post/comment/:id` - Comment on post
+### 1. Clone the Repository
 
-## 🎯 Key Features Implementation
+```bash
+git clone <repository-url>
+cd bic_iicquest
+```
+
+### 2. Backend Setup
+
+```bash
+cd backend
+npm install
+```
+
+### 3. Frontend Setup
+
+```bash
+cd ../frontend
+npm install
+```
+
+## Configuration
+
+### Backend Environment Variables
+
+Create a `.env` file in the `backend` directory with the following variables:
+
+```env
+# Database Configuration
+MONGODB_URI=mongodb://localhost:27017/iicquest
+
+# Server Configuration
+PORT=3000
+CLIENT_URL=http://localhost:5173
+
+# Authentication
+JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRES_IN=7d
+
+# Cloudinary Configuration (for file uploads)
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# Google AI Configuration
+GOOGLE_AI_API_KEY=your_google_ai_api_key
+
+# Environment
+NODE_ENV=development
+```
+
+### Frontend Environment Variables
+
+Create a `.env` file in the `frontend` directory:
+
+```env
+VITE_API_BASE_URL=http://localhost:3000/api
+VITE_SOCKET_URL=http://localhost:3000
+```
+
+## Running the Application
+
+### Development Mode
+
+1. **Start the Backend Server**:
+   ```bash
+   cd backend
+   npm run dev
+   ```
+   The backend server will start on `http://localhost:3000`
+
+2. **Start the Frontend Development Server**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   The frontend application will be available at `http://localhost:5173`
+
+### Production Mode
+
+1. **Build the Frontend**:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Start the Backend in Production**:
+   ```bash
+   cd backend
+   npm start
+   ```
+
+## API Documentation
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/users/register` | User registration |
+| POST | `/api/users/login` | User authentication |
+| GET | `/api/users/profile` | Get user profile |
+| PUT | `/api/users/profile` | Update user profile |
 
 ### Course Management
-The platform supports hierarchical course structure:
-- **Courses** contain multiple chapters
-- **Chapters** contain multiple levels
-- **Levels** contain content and test cases
-- Progress is tracked at each level with completion status
 
-### Project Collaboration
-Projects include:
-- Role-based team structure
-- Technology requirements
-- Application system for joining projects
-- Objective and goal tracking
-- Group chat integration
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/courses` | Get all courses |
+| GET | `/api/courses/:id` | Get specific course |
+| POST | `/api/courses` | Create new course |
+| PUT | `/api/courses/:id` | Update course |
+| DELETE | `/api/courses/:id` | Delete course |
 
-### User Progress System
-Comprehensive tracking includes:
-- Course completion percentages
-- Time spent on each level
-- Learning streaks and achievements
-- Skill progression and technology mastery
+### Progress Tracking
 
-## 🚀 Deployment
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/user-progress/:userId` | Get user progress |
+| POST | `/api/user-progress` | Update progress |
+| GET | `/api/user-progress/:userId/course/:courseId` | Get course-specific progress |
 
-### Backend Deployment
-1. Set up MongoDB Atlas or your preferred MongoDB hosting
-2. Configure environment variables for production
-3. Deploy to your preferred platform (Heroku, Railway, DigitalOcean, etc.)
+### Peer Learning
 
-### Frontend Deployment
-1. Build the production bundle: `npm run build`
-2. Deploy the `dist` folder to your preferred hosting (Netlify, Vercel, etc.)
-3. Configure API base URL for production
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/peer-learning/sessions` | Create peer session |
+| GET | `/api/peer-learning/sessions` | Get available sessions |
+| POST | `/api/peer-learning/invitations` | Send peer invitation |
+| PUT | `/api/peer-learning/invitations/:id` | Respond to invitation |
 
-## 🤝 Contributing
+### Project Management
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Commit your changes: `git commit -am 'Add new feature'`
-4. Push to the branch: `git push origin feature/new-feature`
-5. Submit a pull request
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/projects` | Get all projects |
+| POST | `/api/projects` | Create new project |
+| GET | `/api/projects/:id` | Get specific project |
+| PUT | `/api/projects/:id` | Update project |
+| DELETE | `/api/projects/:id` | Delete project |
 
-## 📄 License
+### Community Features
 
-This project is licensed under the ISC License.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/post` | Get community posts |
+| POST | `/api/post` | Create new post |
+| PUT | `/api/post/:id` | Update post |
+| DELETE | `/api/post/:id` | Delete post |
 
-## 📞 Support
+## License
 
-For support and questions, please open an issue in the repository or contact the development team.
+This project is licensed under the ISC License. See the LICENSE file for details.
 
 ---
 
-**IIC Quest** - Empowering learners through interactive education and collaborative development.

@@ -83,7 +83,7 @@ const HomePage = () => {
               
               <p className="text-xl text-muted-foreground mb-10 max-w-4xl mx-auto leading-relaxed prose-professional">
                 Join thousands of learners mastering programming through interactive courses, 
-                collaborative projects, and real-world challenges on IIC Quest.
+                collaborative projects, and real-world challenges on UpTogether.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
@@ -134,7 +134,7 @@ const HomePage = () => {
               <span className="text-gradient">Platform Features</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6 prose-professional">
-              Why Choose <span className="text-gradient">IIC Quest?</span>
+              Why Choose <span className="text-gradient">UpTogether?</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto prose-professional">
               Experience learning like never before with our innovative platform designed for modern developers

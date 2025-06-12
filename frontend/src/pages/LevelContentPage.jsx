@@ -271,7 +271,7 @@ const LevelContentPage = () => {
       if (messageData.type === 'test_invitation' && !isOwnMessage) {
         setPeerTestInvitation({
           levelId,
-          testCases: level.testCases,
+          testCases: level?.testCases || [],
           invitedBy: 'peer',
           timestamp: messageData.timestamp
         });
@@ -279,6 +279,19 @@ const LevelContentPage = () => {
         toast.info('🎯 Your peer invited you to take a collaborative test!');
       } else if (messageData.type === 'test_acceptance' && !isOwnMessage) {
         toast.success('🎉 Your peer accepted the test invitation!');
+        // Navigate to test page when peer accepts
+        navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}/test`, {
+          state: { 
+            peerSession: realPeerSession,
+            testData: peerTestInvitation
+          }
+        });
+      } else if (messageData.type === 'test_decline' && !isOwnMessage) {
+        toast.error('❌ Your peer declined the test invitation.');
+        // End session and redirect to home
+        handleEndSession().then(() => {
+          navigate('/home');
+        });
       } else if (messageData.type === 'voice_note' && !isOwnMessage) {
         toast.info('🎤 Your peer shared a voice note');
       } else if (messageData.type === 'system') {
@@ -788,25 +801,6 @@ const LevelContentPage = () => {
     setIsInPeerTest(true);
     setShowPeerTestModal(false);
     
-    // Initialize collaborative test data
-    const testData = {
-      currentQuestion: 0,
-      answers: {},
-      peerAnswers: {},
-      startTime: Date.now(),
-      isCollaborative: true
-    };
-    setPeerTestData(testData);
-    
-    const acceptMessage = {
-      id: Date.now(),
-      sender: 'me',
-      text: "✅ Accepted test invitation! Let's code together.",
-      timestamp: new Date().toISOString(),
-      type: 'system'
-    };
-    setMessages(prev => [...prev, acceptMessage]);
-    
     // Send acceptance notification via WebSocket if in real session
     if (realPeerSession && socketService.isSocketConnected()) {
       socketService.sendMessage(realPeerSession.sessionId, "✅ Accepted test invitation! Let's code together.", 'test_acceptance');
@@ -814,14 +808,47 @@ const LevelContentPage = () => {
     
     toast.success('Test invitation accepted! Starting collaborative test...');
     
-    // Navigate to collaborative test mode
-    navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}/peer-test`, {
+    // Navigate to the test page with peer session data
+    navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}/test`, {
       state: { 
-        learningMode: 'peer',
-        peerSession: realPeerSession || peerSession,
-        testData: testData
+        peerSession: realPeerSession,
+        testData: peerTestInvitation
       }
     });
+  };
+
+  const declinePeerTest = async () => {
+    setShowPeerTestModal(false);
+    
+    try {
+      // Send decline notification via WebSocket if in real session
+      if (realPeerSession && socketService.isSocketConnected()) {
+        socketService.sendMessage(realPeerSession.sessionId, "❌ Declined test invitation.", 'test_decline');
+      }
+      
+      // End the session for both users
+      if (realPeerSession?.sessionId) {
+        await endSession(realPeerSession.sessionId);
+        
+        // Leave WebSocket session
+        if (socketService.isSocketConnected()) {
+          socketService.leaveSession(realPeerSession.sessionId);
+        }
+        
+        // Clean up WebSocket listeners
+        socketService.removeAllListeners();
+      }
+      
+      toast.info('Test invitation declined. Redirecting to home...');
+      
+      // Navigate both users to home
+      navigate('/home');
+      
+    } catch (error) {
+      console.error('Error declining peer test:', error);
+      toast.error('Error occurred. Redirecting to home...');
+      navigate('/home');
+    }
   };
 
 
@@ -2307,7 +2334,7 @@ const LevelContentPage = () => {
                   <Button 
                     variant="outline" 
                     className="flex-1"
-                    onClick={() => setShowPeerTestModal(false)}
+                    onClick={declinePeerTest}
                   >
                     <XIcon className="w-4 h-4 mr-2" />
                     Decline

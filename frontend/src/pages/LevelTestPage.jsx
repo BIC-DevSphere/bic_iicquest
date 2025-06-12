@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,11 @@ import {
   Copy,
   Download,
   Upload,
-  Settings
+  Settings,
+  Users,
+  MessageSquare,
+  Send,
+  Medal
 } from "lucide-react";
 import {
   getCourseById,
@@ -41,10 +45,17 @@ import {
   initializeProgress 
 } from "@/services/userProgressService";
 import { testCodeWithPiston, runSingleTestCase } from "@/services/codeExecutor";
+import peerTestService from "@/services/peerTestService";
+import PeerMatchingModal from "@/components/PeerMatchingModal";
 
 const LevelTestPage = () => {
   const { courseId, chapterId, levelId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if this is a peer test session
+  const peerSessionData = location.state?.peerSession;
+  const testData = location.state?.testData;
   
   const [course, setCourse] = useState(null);
   const [chapter, setChapter] = useState(null);
@@ -74,11 +85,47 @@ const LevelTestPage = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [currentTestIndex, setCurrentTestIndex] = useState(0);
   const [runningTestIndex, setRunningTestIndex] = useState(-1);
+  
+  // Peer testing states
+  const [isPeerTestMode, setIsPeerTestMode] = useState(false);
+  const [peerTestSession, setPeerTestSession] = useState(null);
+  const [showPeerInvite, setShowPeerInvite] = useState(false);
+  const [peer, setPeer] = useState(null);
+  const [peerTestResults, setPeerTestResults] = useState([]);
+  const [peerCode, setPeerCode] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  
+  // Competitive testing states
+  const [myCompletionTime, setMyCompletionTime] = useState(null);
+  const [peerCompletionTime, setPeerCompletionTime] = useState(null);
+  const [winner, setWinner] = useState(null);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [myTestProgress, setMyTestProgress] = useState([]);
+  const [peerTestProgress, setPeerTestProgress] = useState([]);
+  const [competitionStartTime, setCompetitionStartTime] = useState(null);
+  const [isCompetitionActive, setIsCompetitionActive] = useState(false);
+  
   const editorRef = useRef(null);
 
   useEffect(() => {
     fetchTestData();
-  }, [courseId, chapterId, levelId]);
+    
+    // Auto-start peer session if data is provided
+    if (peerSessionData) {
+      console.log('🎯 Starting peer test session with data:', peerSessionData);
+      joinPeerTest(peerSessionData.sessionId);
+    }
+  }, [courseId, chapterId, levelId, peerSessionData]);
+
+  // Cleanup peer test session on unmount
+  useEffect(() => {
+    return () => {
+      if (peerTestService.isConnectedToTestSession()) {
+        peerTestService.leaveSession();
+      }
+    };
+  }, []);
 
   // Timer effect
   useEffect(() => {
@@ -205,9 +252,27 @@ const LevelTestPage = () => {
       toast.loading(`Running test ${i + 1} of ${testCases.length}...`, { id: 'execution' });
       
       try {
+        const testStartTime = Date.now();
         const result = await runSingleTestCase(userCode, testCases[i], i, language);
+        const testCompletionTime = Date.now() - testStartTime;
+        
         results.push(result);
         setTestResults([...results]); // Update results incrementally
+        
+        // Track individual test progress
+        const progressEntry = {
+          testIndex: i,
+          passed: result.passed,
+          completionTime: testCompletionTime,
+          timestamp: Date.now()
+        };
+        setMyTestProgress(prev => [...prev, progressEntry]);
+        
+        // Share test result and progress with peer if in peer test mode
+        if (isPeerTestMode) {
+          shareTestResult(i, result);
+          peerTestService.shareTestProgress(i, result, testCompletionTime);
+        }
         
         // Short delay to show progress
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -236,8 +301,38 @@ const LevelTestPage = () => {
 
     if (allPassed) {
       setIsTimerRunning(false);
-      setShowSubmitConfirm(true);
-      toast.success("🎉 All tests passed! Ready to submit your solution.");
+      
+      // Handle competitive peer testing
+      if (isPeerTestMode && isCompetitionActive) {
+        const completionTime = elapsedTime;
+        setMyCompletionTime(completionTime);
+        
+        // Determine winner if peer has already completed
+        if (peerCompletionTime) {
+          if (completionTime < peerCompletionTime) {
+            setWinner('me');
+          } else {
+            setWinner('peer');
+          }
+          setShowWinnerModal(true);
+        } else {
+          // Peer hasn't completed yet, just announce completion
+          setWinner('me'); // Temporary - will be updated when peer completes
+        }
+        
+        // Share completion with peer
+        peerTestService.shareTestCompletion({
+          completionTime: completionTime,
+          score: 100,
+          passedTests: results.length,
+          totalTests: results.length
+        });
+        
+        toast.success(`🏁 You completed in ${formatElapsedTime(completionTime)}! ${!peerCompletionTime ? 'Waiting for peer...' : ''}`);
+      } else {
+        setShowSubmitConfirm(true);
+        toast.success("🎉 All tests passed! Ready to submit your solution.");
+      }
     } else {
       const failedCount = results.filter(r => !r.passed).length;
       toast.error(`${failedCount} test${failedCount > 1 ? 's' : ''} failed. Check the results below.`);
@@ -484,6 +579,154 @@ int main() {
     return level?.starterCode || starters[lang] || starters.python;
   };
 
+  // Peer testing functions
+  const startPeerTest = () => {
+    setShowPeerInvite(true);
+  };
+
+  const handlePeerSessionStart = (sessionData) => {
+    // This will be called when a peer session starts from the matching modal
+    if (sessionData) {
+      joinPeerTest(sessionData.sessionId);
+    }
+  };
+
+  const joinPeerTest = async (sessionId) => {
+    try {
+      const session = await peerTestService.joinPeerTestSession(sessionId);
+      setPeerTestSession(session);
+      setIsPeerTestMode(true);
+      setupPeerTestListeners();
+      toast.success('Joined peer test session!');
+    } catch (error) {
+      console.error('Error joining peer test:', error);
+      toast.error('Failed to join peer test session');
+    }
+  };
+
+  const setupPeerTestListeners = () => {
+    // Listen for peer code updates
+    peerTestService.on('code-update', (data) => {
+      setPeerCode(data.code);
+    });
+
+    // Listen for peer test updates
+    peerTestService.on('test-update', (message) => {
+      try {
+        const messageData = JSON.parse(message.text);
+        
+        if (messageData.action === 'test_completed') {
+          setPeerCompletionTime(messageData.completionTime);
+          
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            sender: 'peer',
+            text: `🏁 Completed all tests in ${formatElapsedTime(messageData.completionTime)}!`,
+            timestamp: message.timestamp,
+            type: 'achievement'
+          }]);
+          
+          // Determine winner and show modal if both have completed
+          if (myCompletionTime) {
+            if (myCompletionTime < messageData.completionTime) {
+              setWinner('me');
+            } else {
+              setWinner('peer');
+            }
+            setShowWinnerModal(true);
+          } else {
+            // Peer finished first, but I haven't finished yet
+            setWinner('peer');
+          }
+          
+        } else if (messageData.action === 'test_progress') {
+          setPeerTestProgress(prev => [...prev, {
+            testIndex: messageData.testIndex,
+            passed: messageData.passed,
+            completionTime: messageData.completionTime,
+            timestamp: messageData.timestamp
+          }]);
+          
+        } else if (messageData.action === 'start_competition') {
+          setCompetitionStartTime(messageData.timestamp);
+          setIsCompetitionActive(true);
+          toast.success('🏁 Competition started! Race to complete all tests!');
+        }
+      } catch (error) {
+        // Handle regular text messages
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'peer',
+          text: message.text,
+          timestamp: message.timestamp,
+          type: message.type
+        }]);
+      }
+    });
+
+    // Listen for peer joining
+    peerTestService.on('peer-joined', (data) => {
+      setPeer({
+        id: data.userId,
+        name: data.user.fullName,
+        avatar: data.user.fullName.split(' ').map(n => n[0]).join(''),
+        status: 'online'
+      });
+      
+      // Start competition when both peers are ready
+      if (!isCompetitionActive) {
+        setTimeout(() => {
+          peerTestService.startCompetition();
+        }, 2000); // Give 2 seconds for both users to get ready
+      }
+    });
+
+    // Listen for peer leaving
+    peerTestService.on('peer-left', (data) => {
+      setPeer(null);
+      setIsPeerTestMode(false);
+      setIsCompetitionActive(false);
+      toast.error('Peer left the session - competition ended');
+    });
+  };
+
+  const sendPeerMessage = () => {
+    if (!newMessage.trim() || !peerTestSession) return;
+    
+    peerTestService.sendMessage(newMessage);
+    setMessages(prev => [...prev, {
+      id: Date.now(),
+      sender: 'me',
+      text: newMessage,
+      timestamp: new Date().toISOString(),
+      type: 'message'
+    }]);
+    setNewMessage('');
+  };
+
+  const syncCodeToPeer = (code) => {
+    if (peerTestSession && isPeerTestMode) {
+      peerTestService.syncCode(code);
+    }
+  };
+
+  const shareTestResult = (testIndex, result) => {
+    if (peerTestSession && isPeerTestMode) {
+      peerTestService.shareTestResult(testIndex, result);
+    }
+  };
+
+  const leavePeerTest = () => {
+    if (peerTestService.isConnectedToTestSession()) {
+      peerTestService.leaveSession();
+    }
+    setIsPeerTestMode(false);
+    setPeerTestSession(null);
+    setPeer(null);
+    setMessages([]);
+    toast.info('Left peer test session');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen mt-10 flex items-center justify-center">
@@ -566,6 +809,21 @@ int main() {
                   </span>
                   {allTestsPassed && (
                     <CheckCircle className="w-5 h-5 text-green-600" />
+                  )}
+                </div>
+              )}
+              
+              {/* Competitive Mode Display */}
+              {isPeerTestMode && isCompetitionActive && (
+                <div className="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-lg">
+                  <Trophy className="w-5 h-5 text-yellow-600" />
+                  <span className="text-yellow-800 font-semibold">
+                    🏁 Racing against {peer?.name || 'Peer'}
+                  </span>
+                  {myCompletionTime && (
+                    <span className="text-xs text-yellow-600">
+                      (Completed in {formatElapsedTime(myCompletionTime)})
+                    </span>
                   )}
                 </div>
               )}
@@ -953,7 +1211,13 @@ int main() {
                     language={getMonacoLanguage(language)}
                     theme={editorTheme}
                     value={userCode}
-                    onChange={(value) => setUserCode(value || '')}
+                    onChange={(value) => {
+                      setUserCode(value || '');
+                      // Sync code with peer if in peer test mode
+                      if (isPeerTestMode) {
+                        syncCodeToPeer(value || '');
+                      }
+                    }}
                     onMount={handleEditorDidMount}
                     loading={
                       <div className="flex items-center justify-center h-96">
@@ -1020,9 +1284,38 @@ int main() {
                         </>
                       )}
                     </Button>
+
+                    {!isPeerTestMode && (
+                      <Button 
+                        onClick={startPeerTest}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        disabled={isTestRunning}
+                      >
+                        <Users className="w-4 h-4" />
+                        Peer Test
+                      </Button>
+                    )}
+
+                    {isPeerTestMode && (
+                      <Button 
+                        onClick={leavePeerTest}
+                        variant="destructive"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <X className="w-4 h-4" />
+                        Leave Session
+                      </Button>
+                    )}
                     
                     <div className="text-sm text-gray-600">
                       Attempts: {testAttempts}/{maxAttempts}
+                      {isPeerTestMode && peer && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          Testing with {peer.name}
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -1110,6 +1403,218 @@ int main() {
               </Card>
             )}
 
+            {/* Competitive Progress Display */}
+            {isPeerTestMode && isCompetitionActive && (
+              <Card>
+                <CardHeader>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-yellow-600" />
+                    Competition Progress
+                  </h3>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* My Progress */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="font-medium text-blue-800">You</span>
+                        {myCompletionTime && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            ✅ Completed: {formatElapsedTime(myCompletionTime)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {testCases.map((_, index) => {
+                          const progress = myTestProgress.find(p => p.testIndex === index);
+                          const isCurrentlyRunning = runningTestIndex === index;
+                          return (
+                            <div key={index} className="flex items-center gap-2 text-sm">
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                progress?.passed ? 'bg-green-500 border-green-500' :
+                                progress?.passed === false ? 'bg-red-500 border-red-500' :
+                                isCurrentlyRunning ? 'border-blue-500 bg-blue-100' :
+                                'border-gray-300'
+                              }`}>
+                                {progress?.passed && <CheckCircle className="w-3 h-3 text-white" />}
+                                {progress?.passed === false && <X className="w-3 h-3 text-white" />}
+                                {isCurrentlyRunning && <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />}
+                              </div>
+                              <span>Test {index + 1}</span>
+                              {progress?.completionTime && (
+                                <span className="text-xs text-gray-500">
+                                  ({formatTime(progress.completionTime)})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Peer Progress */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                        <span className="font-medium text-purple-800">{peer?.name || 'Peer'}</span>
+                        {peerCompletionTime && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            ✅ Completed: {formatElapsedTime(peerCompletionTime)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {testCases.map((_, index) => {
+                          const progress = peerTestProgress.find(p => p.testIndex === index);
+                          return (
+                            <div key={index} className="flex items-center gap-2 text-sm">
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                progress?.passed ? 'bg-green-500 border-green-500' :
+                                progress?.passed === false ? 'bg-red-500 border-red-500' :
+                                'border-gray-300'
+                              }`}>
+                                {progress?.passed && <CheckCircle className="w-3 h-3 text-white" />}
+                                {progress?.passed === false && <X className="w-3 h-3 text-white" />}
+                              </div>
+                              <span>Test {index + 1}</span>
+                              {progress?.completionTime && (
+                                <span className="text-xs text-gray-500">
+                                  ({formatTime(progress.completionTime)})
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Winner Display */}
+                  {myCompletionTime && peerCompletionTime && (
+                    <div className="mt-4 pt-4 border-t text-center">
+                      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
+                        winner === 'me' 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        <Trophy className="w-5 h-5" />
+                        <span className="font-semibold">
+                          {winner === 'me' ? '🎉 You Won!' : `🏆 ${peer?.name || 'Peer'} Won!`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Peer Test Chat Panel */}
+            {isPeerTestMode && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-blue-600" />
+                      Peer Chat
+                      {peer && (
+                        <span className="text-sm text-gray-500">- {peer.name}</span>
+                      )}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${peer ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                      <span className="text-xs text-gray-500">
+                        {peer ? 'Connected' : 'Waiting for peer...'}
+                      </span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Messages */}
+                    <div className="h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                      {messages.length === 0 ? (
+                        <p className="text-gray-500 text-sm text-center mt-8">
+                          No messages yet. Start a conversation!
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {messages.map((message) => (
+                            <div
+                              key={message.id}
+                              className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-[80%] p-2 rounded-lg text-sm ${
+                                  message.sender === 'me'
+                                    ? 'bg-blue-600 text-white'
+                                    : message.type === 'test_result'
+                                    ? 'bg-green-100 text-green-800 border border-green-200'
+                                    : message.type === 'test_completion'
+                                    ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                    : 'bg-white text-gray-800 border'
+                                }`}
+                              >
+                                <p>{message.text}</p>
+                                <span className="text-xs opacity-70 mt-1 block">
+                                  {new Date(message.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Message Input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && sendPeerMessage()}
+                        placeholder="Type a message..."
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!peer}
+                      />
+                      <Button 
+                        onClick={sendPeerMessage}
+                        disabled={!newMessage.trim() || !peer}
+                        size="sm"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    
+                    {peer && (
+                      <div className="text-xs text-gray-500">
+                        You're collaborating with {peer.name} in real-time!
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Peer Code Viewer */}
+            {isPeerTestMode && peer && peerCode && (
+              <Card>
+                <CardHeader>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Code className="w-5 h-5 text-purple-600" />
+                    {peer.name}'s Code
+                  </h3>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg overflow-hidden">
+                    <pre className="bg-gray-900 text-gray-100 p-4 text-sm overflow-x-auto max-h-64">
+                      <code>{peerCode}</code>
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Next Level Button */}
             {allTestsPassed && nextLevel && (
               <Card>
@@ -1141,6 +1646,95 @@ int main() {
             )}
           </div>
         </div>
+
+        {/* Peer Matching Modal for Test Session */}
+        <PeerMatchingModal
+          isOpen={showPeerInvite}
+          onClose={() => setShowPeerInvite(false)}
+          courseId={courseId}
+          chapterId={chapterId}
+          levelId={levelId}
+          courseTitle={course?.title}
+          sessionType="collaborative_test"
+          onSessionStart={handlePeerSessionStart}
+        />
+
+        {/* Winner Modal for Competitive Testing */}
+        {showWinnerModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-lg max-w-md w-full mx-4">
+              <div className="text-center">
+                {winner === 'me' ? (
+                  <>
+                    <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold text-yellow-600 mb-2">🎉 You Won!</h3>
+                    <p className="text-gray-600 mb-4">
+                      Congratulations! You completed the test faster than your peer.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Medal className="w-20 h-20 text-gray-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold text-gray-600 mb-2">Great Job!</h3>
+                    <p className="text-gray-600 mb-4">
+                      Your peer completed the test faster, but you both did great!
+                    </p>
+                  </>
+                )}
+                
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="text-center">
+                      <p className="font-semibold text-blue-600">Your Time</p>
+                      <p className="text-lg font-bold">
+                        {myCompletionTime ? formatElapsedTime(myCompletionTime) : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold text-purple-600">Peer's Time</p>
+                      <p className="text-lg font-bold">
+                        {peerCompletionTime ? formatElapsedTime(peerCompletionTime) : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {myCompletionTime && peerCompletionTime && (
+                    <div className="mt-4 pt-4 border-t text-center">
+                      <p className="text-sm text-gray-600">
+                        Time Difference: {formatElapsedTime(Math.abs(myCompletionTime - peerCompletionTime))}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-3">
+                  {allTestsPassed && (
+                    <Button 
+                      onClick={() => {
+                        setShowWinnerModal(false);
+                        setShowSubmitConfirm(true);
+                      }}
+                      className="flex-1"
+                    >
+                      Submit Solution
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowWinnerModal(false);
+                      leavePeerTest();
+                      navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}`);
+                    }}
+                    className="flex-1"
+                  >
+                    Back to Level
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Submit Confirmation Modal */}
         {showSubmitConfirm && (

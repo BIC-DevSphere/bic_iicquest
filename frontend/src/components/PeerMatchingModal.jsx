@@ -30,13 +30,22 @@ import socketService from '@/services/socketService';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
-const PeerMatchingModal = ({ isOpen, onClose, courseId, chapterId, levelId, courseTitle }) => {
+const PeerMatchingModal = ({ 
+  isOpen, 
+  onClose, 
+  courseId, 
+  chapterId, 
+  levelId, 
+  courseTitle, 
+  sessionType: defaultSessionType = 'content_learning',
+  onSessionStart 
+}) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sendingInvitation, setSendingInvitation] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [invitationMessage, setInvitationMessage] = useState('');
-  const [sessionType, setSessionType] = useState('content_learning');
+  const [sessionType, setSessionType] = useState(defaultSessionType);
   const [studyMode, setStudyMode] = useState('guided');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [waitingForAcceptance, setWaitingForAcceptance] = useState(false);
@@ -72,16 +81,21 @@ const PeerMatchingModal = ({ isOpen, onClose, courseId, chapterId, levelId, cour
         setWaitingForAcceptance(false);
         toast.success(notification.message);
         
-        // Navigate to the session as leader
-        navigate(`/course/${notification.invitation.course._id}/chapter/${notification.invitation.chapter}/level/${notification.invitation.level}`, {
-          state: { 
-            learningMode: 'peer',
-            peerSession: notification.session,
-            isSessionLeader: true
-          }
-        });
-        
-        onClose();
+        if (onSessionStart) {
+          // Use callback for custom session handling
+          onSessionStart(notification.session);
+          onClose();
+        } else {
+          // Default behavior - navigate to learning page
+          navigate(`/course/${notification.invitation.course._id}/chapter/${notification.invitation.chapter}/level/${notification.invitation.level}`, {
+            state: { 
+              learningMode: 'peer',
+              peerSession: notification.session,
+              isSessionLeader: true
+            }
+          });
+          onClose();
+        }
       });
     }
 

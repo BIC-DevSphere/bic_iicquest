@@ -20,6 +20,13 @@ const CourseCard = ({ course, viewMode = "grid" }) => {
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
+  const images = {
+    "Python Fundamentals": "https://cdn.springpeople.com/media/python%20logo.png",
+    "Comprehensive Programming Course": "https://images-ext-1.discordapp.net/external/7J5G2E1jSgW1HFgIeiLLTXS7OChO6v6UAn3iFVK7-hA/%3Fq%3Dtbn%3AANd9GcTFmyJtI5JOzKaP9A5djVpooawZlQ_Y6PWbAw%26s/https/encrypted-tbn0.gstatic.com/images?format=webp",
+    "Essential Computer Skills": "https://images-ext-1.discordapp.net/external/Etx8mYbBHr23CSQwFLruGYcXxngEvgbXh1O91VlUffs/https/onlineexammaker.com/kb/wp-content/uploads/2023/07/computer-skills-quiz.webp?format=webp&width=400&height=244"
+  }
+
+  const courseImage = images[course.title] || "https://placehold.co/600x400";
 
   if (viewMode === "list") {
     return (
@@ -29,7 +36,7 @@ const CourseCard = ({ course, viewMode = "grid" }) => {
             {/* Enhanced Thumbnail */}
             <div className="lg:w-56 h-40 lg:h-auto rounded-2xl overflow-hidden flex-shrink-0 relative group">
               <img
-                src={course.thumbNail || "https://placehold.co/600x400"}
+                src={courseImage}
                 alt={course.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
@@ -118,7 +125,7 @@ const CourseCard = ({ course, viewMode = "grid" }) => {
         {/* Enhanced Course Thumbnail */}
         <div className="h-56 w-full overflow-hidden relative">
           <img
-            src={course.thumbNail || "https://placehold.co/600x400"}
+            src={courseImage}
             alt={course.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />

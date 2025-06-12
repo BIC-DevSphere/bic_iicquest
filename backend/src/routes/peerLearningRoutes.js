@@ -13,7 +13,8 @@ import {
   endSession,
   cancelInvitation,
   updateCollaborationAvailability,
-  getSessionNotifications
+  getSessionNotifications,
+  createTestSession
 } from '../controllers/peerLearningController.js';
 
 const router = express.Router();
@@ -37,6 +38,7 @@ router.get('/sessions/:sessionId', getSessionById);
 router.post('/sessions/:sessionId/messages', addMessageToSession);
 router.put('/sessions/:sessionId/progress', updateSessionProgress);
 router.post('/sessions/:sessionId/end', endSession);
+router.post('/sessions/test', createTestSession);
 
 // User collaboration availability
 router.put('/availability', updateCollaborationAvailability);

@@ -139,12 +139,37 @@ class SocketService {
   }
 
   // Send chat message
-  sendMessage(sessionId, message, type = 'message') {
-    if (this.isConnected && sessionId) {
-      this.socket.emit('send-message', {
-        sessionId,
-        message,
-        type
+  sendMessage(data) {
+    if (this.isConnected) {
+      // Handle both old and new formats
+      if (typeof data === 'string') {
+        // Old format: sendMessage(sessionId, message, type)
+        const sessionId = arguments[0];
+        const message = arguments[1];
+        const type = arguments[2] || 'message';
+        this.socket.emit('send-message', {
+          sessionId,
+          message,
+          type
+        });
+      } else {
+        // New format: sendMessage({ sessionId, message, type })
+        this.socket.emit('send-message', {
+          sessionId: data.sessionId,
+          message: data.message,
+          type: data.type || 'message'
+        });
+      }
+    }
+  }
+
+  // Send code update
+  sendCodeUpdate(data) {
+    if (this.isConnected && data.sessionId) {
+      this.socket.emit('code-editor-change', {
+        sessionId: data.sessionId,
+        code: data.code,
+        cursorPosition: data.cursorPosition
       });
     }
   }
@@ -242,6 +267,20 @@ class SocketService {
   onCodeUpdated(callback) {
     if (this.socket) {
       this.socket.on('code-updated', callback);
+    }
+  }
+
+  // Alias for onCodeUpdated for better API consistency
+  onCodeUpdate(callback) {
+    if (this.socket) {
+      this.socket.on('code-updated', callback);
+    }
+  }
+
+  // Listen for messages (alias for onNewMessage)
+  onMessage(callback) {
+    if (this.socket) {
+      this.socket.on('new-message', callback);
     }
   }
 

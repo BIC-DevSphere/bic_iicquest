@@ -519,6 +519,51 @@ export const updateSessionProgress = async (req, res) => {
   }
 };
 
+// Create a collaborative test session
+export const createTestSession = async (req, res) => {
+  try {
+    const { courseId, chapterId, levelId, inviteUserId } = req.body;
+    const userId = req.user.id;
+
+    // Create test session
+    const session = new PeerSession({
+      course: courseId,
+      chapter: chapterId,
+      level: levelId,
+      sessionType: 'collaborative_test',
+      studyMode: 'practice'
+    });
+
+    session.generateSessionId();
+    session.addParticipant(userId, 'leader');
+    
+    if (inviteUserId) {
+      session.addParticipant(inviteUserId, 'participant');
+    }
+
+    // Add initial system message
+    session.addMessage(
+      userId,
+      '🧪 Collaborative test session started! Work together to solve the coding challenge.',
+      'system'
+    );
+
+    await session.save();
+
+    const populatedSession = await PeerSession.findById(session._id)
+      .populate('participants.user', 'username fullName profilePicture')
+      .populate('course', 'title description');
+
+    res.status(201).json({
+      message: 'Test session created successfully',
+      session: populatedSession
+    });
+  } catch (error) {
+    console.error('Error creating test session:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // End peer session
 export const endSession = async (req, res) => {
   try {

@@ -59,7 +59,7 @@ const SideBar = () => {
                 <GraduationCap className="w-7 h-7 text-white" />
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-sidebar-foreground tracking-tight">IIC Quest</h2>
+                <h2 className="text-xl font-bold text-sidebar-foreground tracking-tight">UpTogether</h2>
                 <p className="text-xs text-sidebar-foreground/70 font-medium">Interactive Learning</p>
               </div>
               {/* Peer Learning Notifications */}

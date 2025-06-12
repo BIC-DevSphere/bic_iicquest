@@ -1,5 +1,5 @@
 // export const API_BASE_URL = "https://8b22-202-51-86-227.ngrok-free.app/api"
-export const API_BASE_URL = "http://localhost:3000/api"
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api"
 
 export const API_ENDPOINTS = {
     // Course endpoints
