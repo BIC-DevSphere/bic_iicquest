@@ -47,12 +47,12 @@ export const getProjectById = async (req, res) => {
 export const createProject = async (req, res) => {
   try {
     // Check if user has completed 2 courses
-    const canCreate = await canCreateProject(req.user.id);
-    if (!canCreate) {
-      return res.status(403).json({ 
-        message: 'You need to complete at least 2 courses to create a project' 
-      });
-    }
+    // const canCreate = await canCreateProject(req.user.id);
+    // if (!canCreate) {
+    //   return res.status(403).json({ 
+    //     message: 'You need to complete at least 2 courses to create a project' 
+    //   });
+    // }
 
     const project = new Project({
       ...req.body,

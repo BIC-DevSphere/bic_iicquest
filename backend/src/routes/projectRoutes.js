@@ -39,12 +39,13 @@ router.post('/', createProject);
 router.put('/:id', updateProject);
 router.post('/:id/apply', applyForRole);
 router.get('/user/projects', getUserProjects);
-router.post('/user/projects/apply/:id', applyForProject);
+router.post('/apply/:id', applyForProject);
 router.put('/:id/status', updateProjectStatus);
 
 // Project applications routes
 router.get('/:id/applications', getProjectApplications);
 router.put('/:projectId/applications/:applicationId/status', updateApplicationStatus);
+
 
 // Chat Routes
 router.post('/project/:id/groupchat', createProjectGroupChat);
