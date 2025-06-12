@@ -14,7 +14,6 @@ import {
   CheckCircle,
   ArrowRight,
   Trophy,
-  Target,
   Lightbulb,
   Code,
   Users,
@@ -22,7 +21,8 @@ import {
   Video,
   Mic,
   Send,
-  UserPlus
+  UserPlus,
+  Sparkles
 } from "lucide-react";
 import {
   getCourseById,
@@ -171,10 +171,12 @@ const LevelContentPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen mt-10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading level content...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center animate-pulse">
+            <BookOpen className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading content...</p>
         </div>
       </div>
     );
@@ -182,21 +184,27 @@ const LevelContentPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen mt-10 flex items-center justify-center">
-        <Card className="p-8 max-w-md">
-          <p className="text-red-600 text-center">Error: {error}</p>
-          <Button onClick={fetchLevelData} className="mt-4 w-full">
-            Try Again
-          </Button>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <div className="max-w-md w-full mx-auto p-6">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 mx-auto flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-destructive" />
+            </div>
+            <h3 className="text-lg font-medium">Something went wrong</h3>
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <Button variant="outline" onClick={fetchLevelData} size="sm">
+              Try Again
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!level) {
     return (
-      <div className="min-h-screen mt-10 flex items-center justify-center">
-        <p className="text-gray-600">Level not found</p>
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <p className="text-sm text-muted-foreground">Level not found</p>
       </div>
     );
   }
@@ -204,240 +212,254 @@ const LevelContentPage = () => {
   const currentContent = content[currentContentIndex];
 
   return (
-    <div className="min-h-screen mt-10">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <Button 
-            variant="outline" 
-            onClick={handleBackToChapters}
-            className="mb-4"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Back to Chapters
-          </Button>
-          
-          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <span>{course?.title}</span>
-            <ChevronRight className="w-4 h-4" />
-            <span>Chapter {chapter?.order}</span>
-            <ChevronRight className="w-4 h-4" />
-            <span className="font-medium">Level {level.order}</span>
-          </div>
-
+        <div className="space-y-6 border-b pb-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">{level.title}</h1>
-              <p className="text-gray-600 mb-4">{level.description}</p>
-              
-              <div className="flex items-center gap-6 text-sm text-gray-500">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {formatDuration(level.estimatedTime || 30)}
-                </div>
-                <div className="flex items-center gap-1">
-                  <BookOpen className="w-4 h-4" />
-                  {content.length} sections
-                </div>
-                {level.testCases?.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    <Code className="w-4 h-4" />
-                    {level.testCases.length} test cases
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {isLevelCompleted && (
-              <Badge variant="default" className="bg-green-600">
-                <CheckCircle className="w-4 h-4 mr-1" />
-                Completed
-              </Badge>
-            )}
+            <Button 
+              variant="ghost" 
+              onClick={handleBackToChapters}
+              className="text-sm"
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Back to Chapters
+            </Button>
 
             {learningMode === 'peer' && peer && (
               <Button
                 variant="outline"
                 onClick={() => setShowPeerPanel(!showPeerPanel)}
-                className="flex items-center gap-2"
+                className="text-sm"
               >
-                <Users className="w-4 h-4" />
+                <Users className="w-4 h-4 mr-2" />
                 {showPeerPanel ? 'Hide Peer Panel' : 'Show Peer Panel'}
               </Button>
             )}
           </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{course?.title}</span>
+              <ChevronRight className="w-4 h-4" />
+              <span>Chapter {chapter?.order}</span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="font-medium">Level {level.order}</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-semibold tracking-tight">{level.title}</h1>
+                <p className="text-muted-foreground">{level.description}</p>
+              </div>
+              
+              {isLevelCompleted && (
+                <Badge variant="default" className="bg-emerald-600">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Completed
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                {formatDuration(level.estimatedTime || 30)}
+              </div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                {content.length} sections
+              </div>
+              {level.testCases?.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Code className="w-4 h-4" />
+                  {level.testCases.length} test cases
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-8">
+        <div className="grid lg:grid-cols-4 gap-8 mt-8">
           {/* Main Content Area */}
           <div className={`${showPeerPanel ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
             {content.length > 0 ? (
-              <Card className="mb-6">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">{currentContent?.title}</h2>
-                    <Badge variant="outline">
-                      {currentContentIndex + 1} of {content.length}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {/* Content Text */}
-                  <div className="prose max-w-none mb-6">
-                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {currentContent?.content?.text}
+              <div className="space-y-8">
+                <Card>
+                  <CardHeader className="border-b">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-medium">{currentContent?.title}</h2>
+                      <Badge variant="secondary">
+                        {currentContentIndex + 1} of {content.length}
+                      </Badge>
                     </div>
-                  </div>
-
-                  {/* Content Media */}
-                  {currentContent?.content?.media && (
-                    <div className="mb-6">
-                      <img 
-                        src={currentContent.content.media} 
-                        alt={currentContent.title}
-                        className="w-full max-w-2xl mx-auto rounded-lg shadow-md"
-                      />
-                    </div>
-                  )}
-
-                  {/* Examples */}
-                  {currentContent?.content?.examples?.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <Lightbulb className="w-5 h-5 text-yellow-600" />
-                        Examples
-                      </h3>
-                      <div className="space-y-3">
-                        {currentContent.content.examples.map((example, index) => (
-                          <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                            <pre className="text-sm overflow-x-auto">
-                              <code>{example}</code>
-                            </pre>
-                          </div>
-                        ))}
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {/* Content Text */}
+                    <div className="prose max-w-none">
+                      <div className="text-foreground leading-relaxed whitespace-pre-wrap">
+                        {currentContent?.content?.text}
                       </div>
                     </div>
-                  )}
 
-                  {/* Navigation */}
-                  <div className="flex items-center justify-between pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleContentNavigation('prev')}
-                      disabled={currentContentIndex === 0}
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-2" />
-                      Previous Section
-                    </Button>
-
-                    <div className="flex gap-2">
-                      {content.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentContentIndex(index)}
-                          className={`w-3 h-3 rounded-full transition-colors ${
-                            index === currentContentIndex 
-                              ? 'bg-blue-600' 
-                              : index <= currentContentIndex 
-                                ? 'bg-blue-300' 
-                                : 'bg-gray-300'
-                          }`}
+                    {/* Content Media */}
+                    {currentContent?.content?.media && (
+                      <div className="mt-6">
+                        <img 
+                          src={currentContent.content.media} 
+                          alt={currentContent.title}
+                          className="w-full rounded-lg border"
                         />
-                      ))}
-                    </div>
+                      </div>
+                    )}
 
-                    <Button
-                      variant="outline"
-                      onClick={() => handleContentNavigation('next')}
-                      disabled={currentContentIndex === content.length - 1}
-                    >
-                      Next Section
-                      <ChevronRight className="w-4 h-4 ml-2" />
+                    {/* Examples */}
+                    {currentContent?.content?.examples?.length > 0 && (
+                      <div className="mt-8 space-y-4">
+                        <h3 className="text-sm font-medium flex items-center gap-2">
+                          <Lightbulb className="w-4 h-4 text-yellow-500" />
+                          Examples
+                        </h3>
+                        <div className="space-y-3">
+                          {currentContent.content.examples.map((example, index) => (
+                            <div key={index} className="bg-muted/50 rounded-lg p-4">
+                              <pre className="text-sm overflow-x-auto">
+                                <code>{example}</code>
+                              </pre>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Navigation */}
+                    <div className="flex items-center justify-between mt-8 pt-6 border-t">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleContentNavigation('prev')}
+                        disabled={currentContentIndex === 0}
+                        size="sm"
+                      >
+                        <ChevronLeft className="w-4 h-4 mr-2" />
+                        Previous
+                      </Button>
+
+                      <div className="flex gap-2">
+                        {content.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentContentIndex(index)}
+                            className={`w-2 h-2 rounded-full transition-colors ${
+                              index === currentContentIndex 
+                                ? 'bg-primary' 
+                                : index < currentContentIndex 
+                                  ? 'bg-primary/30' 
+                                  : 'bg-muted'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleContentNavigation('next')}
+                        disabled={currentContentIndex === content.length - 1}
+                        size="sm"
+                      >
+                        Next
+                        <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4">
+                  {level.testCases?.length > 0 && (
+                    <Button onClick={handleStartTest} size="sm">
+                      <Play className="w-4 h-4 mr-2" />
+                      Take Test
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  )}
+                  
+                  {(!level.testCases?.length || isLevelCompleted) && nextLevel && (
+                    <Button onClick={handleNextLevel} size="sm">
+                      {nextLevel.courseCompleted ? (
+                        <>
+                          <Trophy className="w-4 h-4 mr-2" />
+                          Complete Course
+                        </>
+                      ) : (
+                        <>
+                          Next Level
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
             ) : (
               <Card>
-                <CardContent className="text-center py-12">
-                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">No content available</h3>
-                  <p className="text-gray-500">This level doesn't have reading content yet.</p>
+                <CardContent className="py-12">
+                  <div className="text-center space-y-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
+                      <BookOpen className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="font-medium">No content available</h3>
+                      <p className="text-sm text-muted-foreground">This level doesn't have any content yet.</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              {level.testCases?.length > 0 && (
-                <Button onClick={handleStartTest} size="lg">
-                  <Play className="w-5 h-5 mr-2" />
-                  Take Quick Test
-                </Button>
-              )}
-              
-              {(!level.testCases?.length || isLevelCompleted) && nextLevel && (
-                <Button onClick={handleNextLevel} size="lg">
-                  {nextLevel.courseCompleted ? (
-                    <>
-                      <Trophy className="w-5 h-5 mr-2" />
-                      Complete Course
-                    </>
-                  ) : (
-                    <>
-                      Next Level
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
           </div>
 
           {/* Peer Learning Panel */}
           {learningMode === 'peer' && showPeerPanel && (
             <div className="lg:col-span-1">
               <Card className="sticky top-4">
-                <CardHeader>
+                <CardHeader className="border-b">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Peer Learning</h3>
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <UserPlus className="w-4 h-4" />
+                    <h3 className="font-medium">Peer Learning</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      <UserPlus className="w-3 h-3 mr-1" />
                       {peer.name}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   <Tabs defaultValue="chat" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="chat" className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" />
+                    <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
+                      <TabsTrigger value="chat" className="text-xs">
+                        <MessageSquare className="w-3 h-3 mr-2" />
                         Chat
                       </TabsTrigger>
-                      <TabsTrigger value="call" className="flex items-center gap-2">
-                        <Video className="w-4 h-4" />
+                      <TabsTrigger value="call" className="text-xs">
+                        <Video className="w-3 h-3 mr-2" />
                         Call
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="chat" className="mt-4">
+                    <TabsContent value="chat" className="p-4">
                       <div className="space-y-4">
                         {/* Messages */}
-                        <div className="space-y-4 max-h-[400px] overflow-y-auto p-4 bg-gray-50 rounded-lg">
+                        <div className="space-y-4 h-[400px] overflow-y-auto p-4 bg-muted/50 rounded-lg">
                           {messages.map((message) => (
                             <div
                               key={message.id}
                               className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
                             >
                               <div
-                                className={`max-w-[80%] p-3 rounded-lg ${
+                                className={`max-w-[80%] p-3 rounded-lg text-sm ${
                                   message.sender === 'me'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-800'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted'
                                 }`}
                               >
                                 <p>{message.text}</p>
-                                <span className="text-xs opacity-70">
+                                <span className="text-xs opacity-70 mt-1 block">
                                   {new Date(message.timestamp).toLocaleTimeString()}
                                 </span>
                               </div>
@@ -451,7 +473,8 @@ const LevelContentPage = () => {
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             placeholder="Type your message..."
-                            className="flex-1"
+                            className="text-sm"
+                            rows={1}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
@@ -459,43 +482,41 @@ const LevelContentPage = () => {
                               }
                             }}
                           />
-                          <Button onClick={handleSendMessage}>
+                          <Button size="icon" onClick={handleSendMessage}>
                             <Send className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="call" className="mt-4">
+                    <TabsContent value="call" className="p-4">
                       <div className="space-y-4">
                         {/* Video Call Controls */}
                         <div className="flex justify-center gap-4">
                           <Button
                             variant={isAudioEnabled ? "default" : "outline"}
+                            size="icon"
                             onClick={toggleAudio}
-                            className="w-12 h-12 rounded-full"
                           >
-                            <Mic className="w-5 h-5" />
+                            <Mic className="w-4 h-4" />
                           </Button>
                           <Button
                             variant={isVideoEnabled ? "default" : "outline"}
+                            size="icon"
                             onClick={toggleVideo}
-                            className="w-12 h-12 rounded-full"
                           >
-                            <Video className="w-5 h-5" />
+                            <Video className="w-4 h-4" />
                           </Button>
                         </div>
 
                         {/* Video Preview */}
-                        <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                        <div className="aspect-video bg-muted/50 rounded-lg flex items-center justify-center">
                           {isVideoEnabled ? (
-                            <div className="text-center">
-                              <p className="text-gray-600">Video preview</p>
-                            </div>
+                            <p className="text-sm text-muted-foreground">Video preview</p>
                           ) : (
-                            <div className="text-center">
-                              <Video className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                              <p className="text-gray-600">Camera is off</p>
+                            <div className="text-center space-y-2">
+                              <Video className="w-8 h-8 text-muted-foreground mx-auto" />
+                              <p className="text-sm text-muted-foreground">Camera is off</p>
                             </div>
                           )}
                         </div>

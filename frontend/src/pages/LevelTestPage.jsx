@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import Editor from '@monaco-editor/react';
 import toast from 'react-hot-toast';
 import {
   ChevronLeft,
@@ -19,7 +20,12 @@ import {
   Target,
   Loader2,
   Zap,
-  Clock
+  Clock,
+  RotateCcw,
+  Copy,
+  Download,
+  Upload,
+  Settings
 } from "lucide-react";
 import {
   getCourseById,
@@ -34,7 +40,7 @@ import {
   completeLevelTest,
   initializeProgress 
 } from "@/services/userProgressService";
-import { testCodeWithPiston } from "@/services/codeExecutor";
+import { testCodeWithPiston, runSingleTestCase } from "@/services/codeExecutor";
 
 const LevelTestPage = () => {
   const { courseId, chapterId, levelId } = useParams();
@@ -63,6 +69,12 @@ const LevelTestPage = () => {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [language, setLanguage] = useState('python'); // Default language
+  const [editorTheme, setEditorTheme] = useState('vs-dark');
+  const [fontSize, setFontSize] = useState(14);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentTestIndex, setCurrentTestIndex] = useState(0);
+  const [runningTestIndex, setRunningTestIndex] = useState(-1);
+  const editorRef = useRef(null);
 
   useEffect(() => {
     fetchTestData();
@@ -95,7 +107,7 @@ const LevelTestPage = () => {
       setChapter(chapterData);
       setLevel(levelData);
       setTestCases(testCasesData);
-      setUserCode(levelData.starterCode || '');
+      setUserCode(levelData.starterCode || getStarterCode(language));
 
       // Fetch next level info
       try {
@@ -146,6 +158,7 @@ const LevelTestPage = () => {
     setIsTestRunning(true);
     setTestResults([]);
     setTestAttempts(prev => prev + 1);
+    setCurrentTestIndex(0);
 
     // Update progress to mark level as in progress (first attempt only)
     if (testAttempts === 0) {
@@ -171,33 +184,63 @@ const LevelTestPage = () => {
     setCodeHistory(prev => [...prev, codeSnapshot]);
 
     try {
-      toast.loading("Executing code...", { id: 'execution' });
-      
-      // Execute tests using online code execution API
-      const results = await testCodeWithPiston(userCode, testCases, language);
-      
-      setTestResults(results);
-      
-      const allPassed = results.every(result => result.passed);
-      setAllTestsPassed(allPassed);
-
-      toast.dismiss('execution');
-
-      if (allPassed) {
-        setIsTimerRunning(false);
-        setShowSubmitConfirm(true);
-        toast.success("🎉 All tests passed! Ready to submit your solution.");
-      } else {
-        const failedCount = results.filter(r => !r.passed).length;
-        toast.error(`${failedCount} test${failedCount > 1 ? 's' : ''} failed. Check the results below.`);
-      }
+      // Run tests individually
+      await runTestsSequentially();
       
     } catch (error) {
       console.error("Error running tests:", error);
       toast.dismiss('execution');
       toast.error("Failed to execute code. Please try again.");
-    } finally {
       setIsTestRunning(false);
+    }
+  };
+
+  const runTestsSequentially = async () => {
+    const results = [];
+    
+    for (let i = 0; i < testCases.length; i++) {
+      setRunningTestIndex(i);
+      setCurrentTestIndex(i);
+      
+      toast.loading(`Running test ${i + 1} of ${testCases.length}...`, { id: 'execution' });
+      
+      try {
+        const result = await runSingleTestCase(userCode, testCases[i], i, language);
+        results.push(result);
+        setTestResults([...results]); // Update results incrementally
+        
+        // Short delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        console.error(`Error in test ${i + 1}:`, error);
+        results.push({
+          testCase: testCases[i].description,
+          expected: testCases[i].expectedOutput,
+          actual: '',
+          passed: false,
+          error: error.message,
+          hint: testCases[i].hint,
+          index: i
+        });
+        setTestResults([...results]);
+      }
+    }
+    
+    setRunningTestIndex(-1);
+    toast.dismiss('execution');
+    
+    const allPassed = results.every(result => result.passed);
+    setAllTestsPassed(allPassed);
+    setIsTestRunning(false);
+
+    if (allPassed) {
+      setIsTimerRunning(false);
+      setShowSubmitConfirm(true);
+      toast.success("🎉 All tests passed! Ready to submit your solution.");
+    } else {
+      const failedCount = results.filter(r => !r.passed).length;
+      toast.error(`${failedCount} test${failedCount > 1 ? 's' : ''} failed. Check the results below.`);
     }
   };
 
@@ -322,6 +365,125 @@ const LevelTestPage = () => {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Editor helper functions
+  const handleEditorDidMount = (editor, monaco) => {
+    editorRef.current = editor;
+    
+    // Add keyboard shortcuts
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      runTests();
+    });
+    
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      // Prevent default save
+      return;
+    });
+  };
+
+  const resetCode = () => {
+    setUserCode(level?.starterCode || '');
+    toast.success('Code reset to starter template');
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(userCode);
+    toast.success('Code copied to clipboard');
+  };
+
+  const downloadCode = () => {
+    const fileExtensions = {
+      python: 'py',
+      javascript: 'js',
+      java: 'java',
+      cpp: 'cpp',
+      c: 'c'
+    };
+    
+    const extension = fileExtensions[language] || 'txt';
+    const fileName = `${level?.title?.replace(/\s+/g, '_') || 'solution'}.${extension}`;
+    
+    const blob = new Blob([userCode], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Code downloaded as ${fileName}`);
+  };
+
+  const uploadCode = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setUserCode(e.target.result);
+        toast.success('Code uploaded successfully');
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Monaco Editor language mapping
+  const getMonacoLanguage = (lang) => {
+    const mapping = {
+      python: 'python',
+      javascript: 'javascript',
+      java: 'java',
+      cpp: 'cpp',
+      c: 'c'
+    };
+    return mapping[lang] || 'plaintext';
+  };
+
+  // Get starter code for different languages
+  const getStarterCode = (lang) => {
+    const starters = {
+      python: `# Write your Python code here
+# Example: Declare variables
+name = "Your Name"
+age = 25`,
+      javascript: `// Write your JavaScript code here
+// Example: Declare variables
+let name = "Your Name";
+let age = 25;`,
+      java: `public class Solution {
+    public static void main(String[] args) {
+        // Write your Java code here
+        // Example: Declare variables
+        String name = "Your Name";
+        int age = 25;
+    }
+}`,
+      cpp: `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    // Write your C++ code here
+    // Example: Declare variables
+    string name = "Your Name";
+    int age = 25;
+    
+    return 0;
+}`,
+      c: `#include <stdio.h>
+#include <string.h>
+
+int main() {
+    // Write your C code here
+    // Example: Declare variables
+    char name[] = "Your Name";
+    int age = 25;
+    
+    return 0;
+}`
+    };
+    
+    return level?.starterCode || starters[lang] || starters.python;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen mt-10 flex items-center justify-center">
@@ -439,115 +601,195 @@ const LevelTestPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {testCases.map((testCase, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <h4 className="font-medium mb-2">Test Case {index + 1}</h4>
-                      <p className="text-sm text-gray-600 mb-3">{testCase.description}</p>
-                      <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-sm font-mono">
-                          <span className="text-gray-600">Expected Output:</span><br />
-                          <span className="text-green-600">{testCase.expectedOutput}</span>
-                        </p>
+                  {testCases.map((testCase, index) => {
+                    const isCurrentlyRunning = runningTestIndex === index;
+                    const result = testResults.find(r => r.index === index);
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        className={`border rounded-lg p-4 transition-all duration-300 ${
+                          isCurrentlyRunning 
+                            ? 'border-blue-500 bg-blue-50 shadow-md' 
+                            : result?.passed 
+                              ? 'border-green-500 bg-green-50' 
+                              : result?.passed === false 
+                                ? 'border-red-500 bg-red-50'
+                                : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium flex items-center gap-2">
+                            Test Case {index + 1}
+                            {isCurrentlyRunning && (
+                              <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                            )}
+                            {result?.passed && (
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            )}
+                            {result?.passed === false && (
+                              <X className="w-4 h-4 text-red-600" />
+                            )}
+                          </h4>
+                          
+                          {isCurrentlyRunning && (
+                            <span className="text-xs text-blue-600 font-medium animate-pulse">
+                              RUNNING...
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-sm text-gray-600 mb-3">{testCase.description}</p>
+                        <div className="bg-gray-50 p-3 rounded">
+                          <p className="text-sm font-mono">
+                            <span className="text-gray-600">Expected Output:</span><br />
+                            <span className="text-green-600">{testCase.expectedOutput}</span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
 
             {/* Test Results */}
-            {testResults.length > 0 && (
+            {(testResults.length > 0 || isTestRunning) && (
               <Card>
                 <CardHeader>
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Terminal className="w-5 h-5 text-purple-600" />
                     Execution Results
+                    {isTestRunning && (
+                      <span className="text-sm text-gray-500 ml-2">
+                        ({currentTestIndex + 1} of {testCases.length})
+                      </span>
+                    )}
                   </h3>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {testResults && testResults.length > 0 ? testResults.map((result, index) => (
-                      <div 
-                        key={`test-result-${index}`} 
-                        className={`border rounded-lg p-4 ${
-                          result.passed ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            {result.passed ? (
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <X className="w-5 h-5 text-red-600" />
+                    {/* Show placeholder for tests that haven't run yet */}
+                    {testCases.map((testCase, index) => {
+                      const result = testResults.find(r => r.index === index);
+                      const isCurrentlyRunning = runningTestIndex === index;
+                      const hasNotRun = !result && index > currentTestIndex;
+                      
+                      if (hasNotRun && !isTestRunning) return null;
+                      
+                      return (
+                        <div 
+                          key={`test-result-${index}`} 
+                          className={`border rounded-lg p-4 ${
+                            isCurrentlyRunning 
+                              ? 'border-blue-500 bg-blue-50 animate-pulse' 
+                              : result?.passed 
+                                ? 'border-green-500 bg-green-50' 
+                                : result?.passed === false 
+                                  ? 'border-red-500 bg-red-50'
+                                  : 'border-gray-300 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {isCurrentlyRunning ? (
+                                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                              ) : result?.passed ? (
+                                <CheckCircle className="w-5 h-5 text-green-600" />
+                              ) : result?.passed === false ? (
+                                <X className="w-5 h-5 text-red-600" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+                              )}
+                              <span className={`font-medium ${
+                                isCurrentlyRunning 
+                                  ? 'text-blue-800' 
+                                  : result?.passed 
+                                    ? 'text-green-800' 
+                                    : result?.passed === false 
+                                      ? 'text-red-800'
+                                      : 'text-gray-600'
+                              }`}>
+                                Test Case {index + 1}: {
+                                  isCurrentlyRunning 
+                                    ? 'RUNNING...' 
+                                    : result?.passed 
+                                      ? 'PASSED' 
+                                      : result?.passed === false 
+                                        ? 'FAILED'
+                                        : 'PENDING'
+                                }
+                              </span>
+                            </div>
+                            
+                            {/* Execution Metrics */}
+                            {result?.executionTime && (
+                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Timer className="w-3 h-3" />
+                                  <span>{formatTime(result.executionTime * 1000)}</span>
+                                </div>
+                                {result.memoryUsage && (
+                                  <div className="flex items-center gap-1">
+                                    <Target className="w-3 h-3" />
+                                    <span>{result.memoryUsage} KB</span>
+                                  </div>
+                                )}
+                              </div>
                             )}
-                            <span className={`font-medium ${
-                              result.passed ? 'text-green-800' : 'text-red-800'
-                            }`}>
-                              Test Case {index + 1}: {result.passed ? 'PASSED' : 'FAILED'}
-                            </span>
                           </div>
                           
-                          {/* Execution Metrics */}
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            {result.executionTime && (
-                              <div className="flex items-center gap-1">
-                                <Timer className="w-3 h-3" />
-                                <span>{formatTime(result.executionTime * 1000)}</span>
+                          <p className="text-sm text-gray-600 mb-3">{testCase.description}</p>
+                          
+                          {result && (
+                            <>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700 mb-1">Expected:</p>
+                                  <div className="bg-white p-2 rounded border font-mono text-sm">
+                                    {result.expected}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700 mb-1">Actual:</p>
+                                  <div className={`p-2 rounded border font-mono text-sm ${
+                                    result.passed ? 'bg-green-100' : 'bg-red-100'
+                                  }`}>
+                                    {result.actual}
+                                  </div>
+                                </div>
                               </div>
-                            )}
-                            {result.memoryUsage && (
-                              <div className="flex items-center gap-1">
-                                <Target className="w-3 h-3" />
-                                <span>{result.memoryUsage} KB</span>
-                              </div>
-                            )}
-                          </div>
+                              
+                              {result.error && (
+                                <div className="mt-3">
+                                  <p className="text-sm font-medium text-red-700 mb-1">Error:</p>
+                                  <div className="bg-red-100 p-2 rounded border text-sm text-red-800 font-mono">
+                                    {result.error}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {!result.passed && result.hint && (
+                                <div className="mt-3">
+                                  <p className="text-sm font-medium text-yellow-700 mb-1">💡 Hint:</p>
+                                  <div className="bg-yellow-100 p-2 rounded border text-sm text-yellow-800">
+                                    {result.hint}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
-                        
-                        <p className="text-sm text-gray-600 mb-3">{result.testCase}</p>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-700 mb-1">Expected:</p>
-                            <div className="bg-white p-2 rounded border font-mono text-sm">
-                              {result.expected}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-700 mb-1">Actual:</p>
-                            <div className={`p-2 rounded border font-mono text-sm ${
-                              result.passed ? 'bg-green-100' : 'bg-red-100'
-                            }`}>
-                              {result.actual}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {result.error && (
-                          <div className="mt-3">
-                            <p className="text-sm font-medium text-red-700 mb-1">Error:</p>
-                            <div className="bg-red-100 p-2 rounded border text-sm text-red-800 font-mono">
-                              {result.error}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {!result.passed && result.hint && (
-                          <div className="mt-3">
-                            <p className="text-sm font-medium text-yellow-700 mb-1">💡 Hint:</p>
-                            <div className="bg-yellow-100 p-2 rounded border text-sm text-yellow-800">
-                              {result.hint}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )) : (
+                      );
+                    })}
+                    
+                    {testResults.length === 0 && !isTestRunning && (
                       <p className="text-center text-gray-500 py-8">No test results yet. Click "Run Code" to see results.</p>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                                 </CardContent>
+               </Card>
+             )}
           </div>
 
           {/* Right Panel - Code Editor */}
@@ -555,57 +797,216 @@ const LevelTestPage = () => {
             {/* Code Editor */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Code className="w-5 h-5 text-blue-600" />
                     Your Solution
                   </h3>
                   
-                  {/* Language Selector */}
                   <div className="flex items-center gap-2">
-                    <label htmlFor="language" className="text-sm font-medium text-gray-700">
-                      Language:
-                    </label>
+                    {/* Language Selector */}
                     <select
-                      id="language"
                       value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
+                      onChange={(e) => {
+                        const newLang = e.target.value;
+                        setLanguage(newLang);
+                        // Only reset code if it's empty or still the default starter code
+                        if (!userCode.trim() || userCode === getStarterCode(language)) {
+                          setUserCode(getStarterCode(newLang));
+                        } else {
+                          // Ask user if they want to reset to new language template
+                          if (window.confirm(`Switch to ${newLang}? This will reset your code to the template for ${newLang}.`)) {
+                            setUserCode(getStarterCode(newLang));
+                          }
+                        }
+                      }}
                       className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={isTestRunning}
                     >
-                      <option value="python">Python 3</option>
-                      <option value="java">Java</option>
+                      <option value="python">Python</option>
                       <option value="javascript">JavaScript</option>
+                      <option value="java">Java</option>
                       <option value="cpp">C++</option>
                       <option value="c">C</option>
                     </select>
+                    
+                    {/* Settings Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSettings(!showSettings)}
+                      className="flex items-center gap-1"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-                
-                {/* Timer */}
-                {isTimerRunning && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>Time: {formatElapsedTime(elapsedTime)}</span>
+
+                {/* Settings Panel */}
+                {showSettings && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+                    <h4 className="font-medium mb-3">Editor Settings</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">
+                          Theme:
+                        </label>
+                        <select
+                          value={editorTheme}
+                          onChange={(e) => setEditorTheme(e.target.value)}
+                          className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                        >
+                          <option value="vs-dark">Dark</option>
+                          <option value="light">Light</option>
+                          <option value="hc-black">High Contrast</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">
+                          Font Size:
+                        </label>
+                        <select
+                          value={fontSize}
+                          onChange={(e) => setFontSize(Number(e.target.value))}
+                          className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                        >
+                          <option value="12">12px</option>
+                          <option value="14">14px</option>
+                          <option value="16">16px</option>
+                          <option value="18">18px</option>
+                          <option value="20">20px</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 )}
+                
+                {/* Editor Toolbar */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resetCode}
+                      className="flex items-center gap-1"
+                      disabled={isTestRunning}
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Reset
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyCode}
+                      className="flex items-center gap-1"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadCode}
+                      className="flex items-center gap-1"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </Button>
+                    
+                    <label className="cursor-pointer">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                        disabled={isTestRunning}
+                        onClick={() => document.getElementById('file-upload').click()}
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload
+                      </Button>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        accept=".py,.js,.java,.cpp,.c,.txt"
+                        onChange={uploadCode}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  
+                  {/* Timer */}
+                  {isTimerRunning && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      <span>Time: {formatElapsedTime(elapsedTime)}</span>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <Textarea
-                  value={userCode}
-                  onChange={(e) => setUserCode(e.target.value)}
-                  placeholder={`Write your ${language} code here...`}
-                  className="min-h-[300px] font-mono text-sm"
-                  style={{ fontFamily: 'Consolas, Monaco, "Courier New", monospace' }}
-                  disabled={isTestRunning}
-                />
+                {/* Monaco Editor */}
+                <div className="border rounded-lg overflow-hidden">
+                  <Editor
+                    height="400px"
+                    language={getMonacoLanguage(language)}
+                    theme={editorTheme}
+                    value={userCode}
+                    onChange={(value) => setUserCode(value || '')}
+                    onMount={handleEditorDidMount}
+                    loading={
+                      <div className="flex items-center justify-center h-96">
+                        <div className="text-center">
+                          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                          <p className="text-gray-600">Loading code editor...</p>
+                        </div>
+                      </div>
+                    }
+                    options={{
+                      fontSize: fontSize,
+                      fontFamily: 'JetBrains Mono, Consolas, Monaco, "Courier New", monospace',
+                      minimap: { enabled: true },
+                      scrollBeyondLastLine: false,
+                      automaticLayout: true,
+                      tabSize: language === 'python' ? 4 : 2,
+                      insertSpaces: true,
+                      wordWrap: 'on',
+                      lineNumbers: 'on',
+                      renderLineHighlight: 'all',
+                      selectOnLineNumbers: true,
+                      roundedSelection: false,
+                      readOnly: isTestRunning,
+                      cursorStyle: 'line',
+                      mouseWheelZoom: true,
+                      contextmenu: true,
+                      folding: true,
+                      foldingStrategy: 'indentation',
+                      showFoldingControls: 'always',
+                      unfoldOnClickAfterEndOfLine: false,
+                      autoIndent: 'full',
+                      formatOnType: true,
+                      formatOnPaste: true,
+                      suggestOnTriggerCharacters: true,
+                      acceptSuggestionOnEnter: 'on',
+                      tabCompletion: 'on',
+                      wordBasedSuggestions: true,
+                      parameterHints: { enabled: true },
+                      quickSuggestions: true,
+                      snippetSuggestions: 'inline',
+                      bracketPairColorization: { enabled: true }
+                    }}
+                  />
+                </div>
                 
+                {/* Action Buttons */}
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center gap-4">
                     <Button 
                       onClick={runTests} 
                       disabled={isTestRunning}
                       className="flex items-center gap-2"
+                      size="lg"
                     >
                       {isTestRunning ? (
                         <>
@@ -615,7 +1016,7 @@ const LevelTestPage = () => {
                       ) : (
                         <>
                           <Zap className="w-4 h-4" />
-                          Run Code
+                          Run Code (Ctrl+Enter)
                         </>
                       )}
                     </Button>
@@ -625,7 +1026,7 @@ const LevelTestPage = () => {
                     </div>
                   </div>
                   
-                  {level.hints && level.hints.length > 0 && (
+                  {level?.hints && level.hints.length > 0 && (
                     <Button 
                       variant="outline" 
                       onClick={() => setShowHints(!showHints)}
@@ -636,6 +1037,11 @@ const LevelTestPage = () => {
                       {showHints ? 'Hide Hints' : 'Show Hints'}
                     </Button>
                   )}
+                </div>
+                
+                {/* Keyboard Shortcuts Info */}
+                <div className="mt-3 text-xs text-gray-500">
+                  <p><strong>Shortcuts:</strong> Ctrl+Enter (Run Code) • Ctrl+S (Save) • Ctrl+/ (Comment)</p>
                 </div>
               </CardContent>
             </Card>

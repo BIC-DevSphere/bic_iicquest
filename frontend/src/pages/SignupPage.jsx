@@ -34,7 +34,7 @@ const SignupPage = () => {
       // Store the token in localStorage
       localStorage.setItem("authToken", response.data.token);
       
-
+      
       // Redirect to dashboard or home page
       navigate("/");
     } catch (error) {
@@ -114,7 +114,7 @@ const SignupPage = () => {
           </form>
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
-            <Link to="/login" className="text-blue-600 hover:underline">
+            <Link to="/auth/login" className="text-blue-600 hover:underline">
               Sign in
             </Link>
           </div>

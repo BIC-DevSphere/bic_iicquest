@@ -23,7 +23,8 @@ import {
   Edit,
   Save,
   X,
-  MoreHorizontal
+  MoreHorizontal,
+  Sparkles
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -366,10 +367,12 @@ const ProjectCollaborationPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading collaboration workspace...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center animate-pulse">
+            <Sparkles className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading workspace...</p>
         </div>
       </div>
     );
@@ -377,11 +380,13 @@ const ProjectCollaborationPage = () => {
 
   if (!collaborationData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-600">Failed to load collaboration data</p>
-          <Button onClick={() => navigate('/projects')} className="mt-4">
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 mx-auto flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-destructive" />
+          </div>
+          <p className="text-sm text-muted-foreground">Failed to load collaboration data</p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/projects')}>
             Back to Projects
           </Button>
         </div>
@@ -392,30 +397,30 @@ const ProjectCollaborationPage = () => {
   const { project, groupChat, userRole } = collaborationData;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="border-b">
+        <div className="max-w-[1600px] mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/pair-projects')}
-                className="flex items-center space-x-2"
+                className="text-sm"
               >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back to Projects</span>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Projects
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
-                <p className="text-sm text-gray-600">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-semibold tracking-tight">{project.title}</h1>
+                <p className="text-sm text-muted-foreground">
                   {project.collaborators?.length || 0} collaborators • {userRole || 'Member'}
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge className={getStatusColor(project.status)}>
+            <div className="flex items-center space-x-4">
+              <Badge variant="secondary" className="capitalize">
                 {project.status.replace('_', ' ')}
               </Badge>
               <Button variant="outline" size="sm">
@@ -428,8 +433,8 @@ const ProjectCollaborationPage = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4">
+      <div className="border-b">
+        <div className="max-w-[1600px] mx-auto px-6">
           <nav className="flex space-x-8">
             {[
               { id: 'overview', label: 'Overview', icon: Target },
@@ -442,10 +447,10 @@ const ProjectCollaborationPage = () => {
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm ${
+                className={`flex items-center space-x-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -457,24 +462,26 @@ const ProjectCollaborationPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-[1600px] mx-auto px-6 py-8">
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Project Info */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-8">
               <Card>
-                <CardHeader>
+                <CardHeader className="border-b">
                   <CardTitle>Project Description</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-gray-700 leading-relaxed">{project.description}</p>
+                <CardContent className="pt-6">
+                  <div className="prose max-w-none">
+                    <p className="leading-relaxed">{project.description}</p>
+                  </div>
                   
                   {project.technologies && project.technologies.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Technologies</h4>
+                    <div className="mt-6">
+                      <h4 className="text-sm font-medium mb-3">Technologies</h4>
                       <div className="flex flex-wrap gap-2">
                         {project.technologies.map((tech, index) => (
-                          <Badge key={index} variant="secondary">
+                          <Badge key={index} variant="secondary" className="text-xs">
                             {tech.name}
                           </Badge>
                         ))}
@@ -482,31 +489,35 @@ const ProjectCollaborationPage = () => {
                     </div>
                   )}
 
-                  {project.githubRepo && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Repository</h4>
-                      <a
-                        href={project.githubRepo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        {project.githubRepo}
-                      </a>
-                    </div>
-                  )}
+                  {(project.githubRepo || project.liveDemo) && (
+                    <div className="mt-6 space-y-4">
+                      {project.githubRepo && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">Repository</h4>
+                          <a
+                            href={project.githubRepo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                          >
+                            {project.githubRepo}
+                          </a>
+                        </div>
+                      )}
 
-                  {project.liveDemo && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Live Demo</h4>
-                      <a
-                        href={project.liveDemo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        {project.liveDemo}
-                      </a>
+                      {project.liveDemo && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">Live Demo</h4>
+                          <a
+                            href={project.liveDemo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                          >
+                            {project.liveDemo}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -514,67 +525,46 @@ const ProjectCollaborationPage = () => {
 
               {/* Recent Activity */}
               <Card>
-                <CardHeader>
+                <CardHeader className="border-b">
                   <CardTitle>Recent Activity</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="pt-6">
+                  <div className="space-y-6">
                     {projectActivity.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500">No recent activity</p>
+                      <div className="text-center py-12">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 mx-auto flex items-center justify-center mb-4">
+                          <Clock className="h-6 w-6 text-primary" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">No recent activity</p>
                       </div>
                     ) : (
                       projectActivity.map((activity, index) => (
-                        <div key={index} className="flex items-start space-x-3">
-                          {activity.type === 'objective_completed' && (
-                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-                          )}
-                          {activity.type === 'message_posted' && (
-                            <MessageSquare className="h-5 w-5 text-blue-500 mt-0.5" />
-                          )}
-                          {activity.type === 'file_uploaded' && (
-                            <Users className="h-5 w-5 text-purple-500 mt-0.5" />
-                          )}
-                          {activity.type === 'member_joined' && (
-                            <User className="h-5 w-5 text-orange-500 mt-0.5" />
-                          )}
-                          <div>
+                        <div key={index} className="flex items-start space-x-4">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            {activity.type === 'objective_completed' && (
+                              <CheckCircle className="h-4 w-4 text-primary" />
+                            )}
+                            {activity.type === 'message_posted' && (
+                              <MessageSquare className="h-4 w-4 text-primary" />
+                            )}
+                            {activity.type === 'file_uploaded' && (
+                              <Users className="h-4 w-4 text-primary" />
+                            )}
+                            {activity.type === 'member_joined' && (
+                              <User className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1">
                             <p className="text-sm">
-                              <span className="font-medium">{activity.user?.fullName || 'Someone'}</span> {activity.description}
+                              <span className="font-medium">{activity.user?.fullName || 'Someone'}</span>{' '}
+                              {activity.description}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-muted-foreground mt-1">
                               {new Date(activity.createdAt).toLocaleString()}
                             </p>
                           </div>
                         </div>
                       ))
-                    )}
-                    
-                    {/* Fallback activity items if no real data */}
-                    {projectActivity.length === 0 && (
-                      <>
-                        <div className="flex items-start space-x-3">
-                          <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-                          <div>
-                            <p className="text-sm">
-                              <span className="font-medium">Project created</span> and collaboration workspace initialized
-                            </p>
-                            <p className="text-xs text-gray-500">{formatDate(project.createdAt)}</p>
-                          </div>
-                        </div>
-                        {project.collaborators && project.collaborators.length > 0 && (
-                          <div className="flex items-start space-x-3">
-                            <User className="h-5 w-5 text-orange-500 mt-0.5" />
-                            <div>
-                              <p className="text-sm">
-                                <span className="font-medium">{project.collaborators[0].user?.fullName}</span> joined the project
-                              </p>
-                              <p className="text-xs text-gray-500">{formatDate(project.collaborators[0].joinedAt)}</p>
-                            </div>
-                          </div>
-                        )}
-                      </>
                     )}
                   </div>
                 </CardContent>
@@ -582,25 +572,25 @@ const ProjectCollaborationPage = () => {
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Progress Overview */}
               <Card>
-                <CardHeader>
+                <CardHeader className="border-b">
                   <CardTitle>Progress Overview</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="pt-6">
+                  <div className="space-y-6">
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium">Objectives</span>
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-muted-foreground">
                           {project.objectives?.filter(obj => obj.status === 'completed').length || 0}/
                           {project.objectives?.length || 0}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div 
-                          className="bg-blue-600 h-2 rounded-full" 
+                          className="h-full bg-primary transition-all" 
                           style={{ 
                             width: `${project.objectives?.length ? 
                               (project.objectives.filter(obj => obj.status === 'completed').length / project.objectives.length) * 100 : 0}%` 
@@ -612,13 +602,10 @@ const ProjectCollaborationPage = () => {
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium">This Week's Goals</span>
-                        <span className="text-sm text-gray-600">
-                          {/* Calculate completed goals for current week */}
-                          3/5
-                        </span>
+                        <span className="text-sm text-muted-foreground">3/5</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-600 h-2 rounded-full" style={{ width: '60%' }}></div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: '60%' }}></div>
                       </div>
                     </div>
                   </div>
@@ -627,24 +614,24 @@ const ProjectCollaborationPage = () => {
 
               {/* Team Members */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    Team Members
+                <CardHeader className="border-b">
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Team Members</CardTitle>
                     <Badge variant="secondary">{project.collaborators?.length || 0}</Badge>
-                  </CardTitle>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
                     {project.collaborators?.map((collaborator, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="h-4 w-4 text-blue-600" />
+                      <div key={index} className="flex items-center space-x-4">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-4 w-4 text-primary" />
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{collaborator.user?.fullName || 'Anonymous'}</p>
-                          <p className="text-xs text-gray-500">{collaborator.role}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{collaborator.user?.fullName || 'Anonymous'}</p>
+                          <p className="text-xs text-muted-foreground">{collaborator.role}</p>
                         </div>
-                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
                       </div>
                     ))}
                   </div>
@@ -653,37 +640,39 @@ const ProjectCollaborationPage = () => {
 
               {/* Quick Actions */}
               <Card>
-                <CardHeader>
+                <CardHeader className="border-b">
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('objectives')}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Objective
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('goals')}
-                  >
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Set Weekly Goals
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start"
-                    onClick={() => setActiveTab('chat')}
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Open Team Chat
-                  </Button>
+                <CardContent className="pt-6">
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start"
+                      onClick={() => setActiveTab('objectives')}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Objective
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start"
+                      onClick={() => setActiveTab('goals')}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Set Weekly Goals
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start"
+                      onClick={() => setActiveTab('chat')}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Open Team Chat
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>

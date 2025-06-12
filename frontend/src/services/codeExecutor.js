@@ -6,7 +6,7 @@ const RAPIDAPI_KEY = '211a5339cfmsh2fd6938cacb72e8p10ed69jsnd2c240e72fad'; // Yo
 const LANGUAGE_IDS = {
   python: 71,    // Python 3.8.1
   java: 62,      // Java (OpenJDK 13.0.1)
-  javascript: 63, // JavaScript (Node.js 12.14.0)
+  javascript: 93, // JavaScript (Node.js 18.15.0)
   cpp: 54,       // C++ (GCC 9.2.0)
   c: 50,         // C (GCC 9.2.0)
 };
@@ -208,6 +208,17 @@ const PISTON_API_URL = 'https://emkc.org/api/v2/piston';
 
 export const executeCodeWithPiston = async (code, language = 'python', version = '3.10.0') => {
   try {
+    // Map language to Piston's supported versions
+    const languageVersions = {
+      python: '3.10.0',
+      javascript: '18.15.0',
+      java: '19.0.2',
+      cpp: '10.2.0',
+      c: '10.2.0'
+    };
+
+    const pistonVersion = languageVersions[language.toLowerCase()] || version;
+
     const response = await fetch(`${PISTON_API_URL}/execute`, {
       method: 'POST',
       headers: {
@@ -215,7 +226,7 @@ export const executeCodeWithPiston = async (code, language = 'python', version =
       },
       body: JSON.stringify({
         language: language,
-        version: version,
+        version: pistonVersion,
         files: [
           {
             content: code
@@ -250,111 +261,207 @@ export const executeCodeWithPiston = async (code, language = 'python', version =
   }
 };
 
-// Test code with Piston API (free alternative)
+// Run a single test case
+export const runSingleTestCase = async (userCode, testCase, testIndex, language = 'python') => {
+  try {
+    let testPassed = false;
+    let actualOutput = '';
+    let executionError = null;
+    
+    // Create a complete test script that includes the user code + test execution
+    let fullTestCode = '';
+    
+    if (language === 'javascript') {
+      // Remove any existing console.log statements from user code to avoid double output
+      // Use a more robust function to handle nested parentheses
+      const removeConsoleLogs = (code) => {
+        const lines = code.split('\n');
+        return lines.filter(line => !line.trim().startsWith('console.log')).join('\n');
+      };
+      const cleanUserCode = removeConsoleLogs(userCode);
+      
+      // For JavaScript type checking
+      if (testCase.description.toLowerCase().includes('string') || testCase.expectedOutput === 'string') {
+        // Try to find any string variable in the code
+        const stringVarMatch = cleanUserCode.match(/(let|var|const)\s+(\w+)\s*=\s*["'`][^"'`]*["'`]/);
+        const varName = stringVarMatch ? stringVarMatch[2] : 'name';
+        
+        fullTestCode = `
+${cleanUserCode}
+
+try {
+  if (typeof ${varName} !== 'undefined') {
+    console.log(typeof ${varName});
+  } else if (typeof name !== 'undefined') {
+    console.log(typeof name);
+  } else {
+    console.log('ERROR: No string variable found');
+  }
+} catch (error) {
+  console.log('ERROR: ' + error.message);
+}
+`;
+      } else if (testCase.description.toLowerCase().includes('number') || testCase.expectedOutput === 'number') {
+        // Try to find any number variable in the code
+        const numberVarMatch = cleanUserCode.match(/(let|var|const)\s+(\w+)\s*=\s*\d+/);
+        const varName = numberVarMatch ? numberVarMatch[2] : 'age';
+        
+        fullTestCode = `
+${cleanUserCode}
+
+try {
+  if (typeof ${varName} !== 'undefined') {
+    console.log(typeof ${varName});
+  } else if (typeof age !== 'undefined') {
+    console.log(typeof age);
+  } else {
+    console.log('ERROR: No number variable found');
+  }
+} catch (error) {
+  console.log('ERROR: ' + error.message);
+}
+`;
+      } else {
+        // General test case execution
+        fullTestCode = `
+${userCode}
+
+try {
+  ${testCase.testCode}
+} catch (error) {
+  console.log('ERROR: ' + error.message);
+}
+`;
+      }
+    } else if (language === 'python') {
+      // Remove any existing print statements from user code to avoid double output
+      const removePrintStatements = (code) => {
+        const lines = code.split('\n');
+        return lines.filter(line => !line.trim().startsWith('print(')).join('\n');
+      };
+      const cleanUserCode = removePrintStatements(userCode);
+      
+      // For Python type checking - execute the test code directly
+      if (testCase.description.toLowerCase().includes('string') || testCase.expectedOutput === 'str') {
+        // Try to find any string variable in the code
+        const stringVarMatch = cleanUserCode.match(/(\w+)\s*=\s*["'][^"']*["']/);
+        const varName = stringVarMatch ? stringVarMatch[1] : 'name';
+        
+        fullTestCode = `
+${cleanUserCode}
+
+try:
+    if '${varName}' in locals() or '${varName}' in globals():
+        print(type(${varName}).__name__)
+    elif 'name' in locals() or 'name' in globals():
+        print(type(name).__name__)
+    else:
+        print("ERROR: No string variable found")
+except Exception as e:
+    print("ERROR: " + str(e))
+`;
+      } else if (testCase.description.toLowerCase().includes('number') || testCase.expectedOutput === 'int') {
+        // Try to find any number variable in the code
+        const numberVarMatch = cleanUserCode.match(/(\w+)\s*=\s*\d+/);
+        const varName = numberVarMatch ? numberVarMatch[1] : 'age';
+        
+        fullTestCode = `
+${cleanUserCode}
+
+try:
+    if '${varName}' in locals() or '${varName}' in globals():
+        print(type(${varName}).__name__)
+    elif 'age' in locals() or 'age' in globals():
+        print(type(age).__name__)
+    else:
+        print("ERROR: No number variable found")
+except Exception as e:
+    print("ERROR: " + str(e))
+`;
+      } else {
+        // Execute the test code directly
+        fullTestCode = `
+${userCode}
+
+try:
+    ${testCase.testCode}
+except Exception as e:
+    print("ERROR: " + str(e))
+`;
+      }
+    } else {
+      // For other languages
+      fullTestCode = `
+${userCode}
+
+${testCase.testCode}
+`;
+    }
+    
+    console.log(`Test ${testIndex + 1} executing:`, fullTestCode);
+    
+    // Execute the complete test
+    const executionResult = await executeCodeWithPiston(fullTestCode, language);
+    
+    if (!executionResult.success) {
+      return {
+        testCase: testCase.description,
+        expected: testCase.expectedOutput,
+        actual: executionResult.error,
+        passed: false,
+        error: executionResult.error,
+        hint: testCase.hint,
+        index: testIndex
+      };
+    }
+    
+    actualOutput = executionResult.output.trim();
+    console.log(`Test ${testIndex + 1} output:`, actualOutput, `Expected:`, testCase.expectedOutput);
+    
+    // Check if there was an execution error
+    if (actualOutput.startsWith('ERROR:')) {
+      testPassed = false;
+      executionError = actualOutput.replace('ERROR: ', '');
+      actualOutput = executionError;
+    } else {
+      // Normalize the comparison
+      const expectedStr = testCase.expectedOutput.toString().trim();
+      const actualStr = actualOutput.trim();
+      
+      testPassed = actualStr === expectedStr;
+    }
+    
+    return {
+      testCase: testCase.description,
+      expected: testCase.expectedOutput,
+      actual: actualOutput,
+      passed: testPassed,
+      error: executionError,
+      hint: testCase.hint,
+      index: testIndex
+    };
+    
+  } catch (error) {
+    console.error(`Error in test ${testIndex + 1}:`, error);
+    return {
+      testCase: testCase.description,
+      expected: testCase.expectedOutput,
+      actual: '',
+      passed: false,
+      error: error.message,
+      hint: testCase.hint,
+      index: testIndex
+    };
+  }
+};
+
+// Test code with Piston API (free alternative) - runs all tests sequentially
 export const testCodeWithPiston = async (userCode, testCases, language = 'python') => {
   const results = [];
   
   for (let i = 0; i < testCases.length; i++) {
-    const testCase = testCases[i];
-    
-    try {
-      // Execute only the user's code - no modifications
-      const executionResult = await executeCodeWithPiston(userCode, language);
-      
-      if (!executionResult.success) {
-        results.push({
-          testCase: testCase.description,
-          expected: testCase.expectedOutput,
-          actual: executionResult.error,
-          passed: false,
-          error: executionResult.error,
-          hint: testCase.hint
-        });
-        continue;
-      }
-
-      // Now evaluate the test case on the frontend
-      let testPassed = false;
-      let actualOutput = executionResult.output.trim();
-      
-      if (testCase.testCode.includes('type(') && testCase.testCode.includes('==')) {
-        // For type checking tests like "type(age) == int and age == 25"
-        // We need to check if the code has the right variable with right type and value
-        
-        // Extract variable name from test code
-        const varMatch = testCase.testCode.match(/type\((\w+)\)/);
-        const expectedValue = testCase.expectedOutput;
-        
-        if (varMatch) {
-          const varName = varMatch[1];
-          
-          // Check if the variable is declared and has the right value in the code
-          const varDeclarationRegex = new RegExp(`${varName}\\s*=\\s*([^\\s#;\\n]+)`);
-          const match = userCode.match(varDeclarationRegex);
-          
-          if (match) {
-            const assignedValue = match[1].trim();
-            
-            // For integer type check
-            if (testCase.testCode.includes('== int')) {
-              const numValue = parseInt(assignedValue, 10);
-              testPassed = !isNaN(numValue) && 
-                          numValue.toString() === assignedValue && 
-                          numValue.toString() === expectedValue.toString();
-            }
-            // For string type check
-            else if (testCase.testCode.includes('== str')) {
-              testPassed = (assignedValue.startsWith('"') || assignedValue.startsWith("'")) &&
-                          assignedValue.slice(1, -1) === expectedValue.toString();
-            }
-            // For float type check
-            else if (testCase.testCode.includes('== float')) {
-              const floatValue = parseFloat(assignedValue);
-              testPassed = !isNaN(floatValue) && 
-                          floatValue.toString() === expectedValue.toString();
-            }
-            // For bool type check
-            else if (testCase.testCode.includes('== bool')) {
-              testPassed = (assignedValue === 'True' || assignedValue === 'False') &&
-                          assignedValue === expectedValue.toString();
-            }
-          }
-          
-          if (testPassed) {
-            actualOutput = expectedValue.toString();
-          } else {
-            actualOutput = match ? match[1].trim() : 'Variable not found';
-          }
-        }
-      } 
-      // For print output tests
-      else if (actualOutput === testCase.expectedOutput.toString()) {
-        testPassed = true;
-      }
-      // For other direct comparisons
-      else {
-        testPassed = actualOutput === testCase.expectedOutput.toString();
-      }
-      
-      results.push({
-        testCase: testCase.description,
-        expected: testCase.expectedOutput,
-        actual: actualOutput,
-        passed: testPassed,
-        error: null,
-        hint: testCase.hint
-      });
-      
-    } catch (error) {
-      results.push({
-        testCase: testCase.description,
-        expected: testCase.expectedOutput,
-        actual: '',
-        passed: false,
-        error: error.message,
-        hint: testCase.hint
-      });
-    }
+    const result = await runSingleTestCase(userCode, testCases[i], i, language);
+    results.push(result);
   }
   
   return results;

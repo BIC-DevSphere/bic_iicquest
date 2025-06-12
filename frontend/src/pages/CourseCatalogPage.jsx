@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Grid, List } from "lucide-react";
+import { Grid, List, BookOpen, Filter, Search, Sparkles, GraduationCap, TrendingUp, RefreshCw } from "lucide-react";
 import CourseCard from "../components/CourseCard";
 import SearchFilter from "../components/SearchFilter";
 import { getAllCourses, getCoursesByCategory, searchCourses } from "@/services/courseService";
@@ -120,69 +120,142 @@ const CourseCatalogPage = () => {
   }, [selectedCategory, searchQuery]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto flex items-center justify-center animate-pulse">
+            <BookOpen className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-muted-foreground text-sm font-medium">Loading courses...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  return (
-    <div className="min-h-screen mt-10">
-      <div>
-        {/* Header Section */}
-
-        {/* Search and Filter Section */}
-        <div className="mb-8">
-          <SearchFilter />
-        </div>
-
-        {/* Main Content */}
-        <div className="">
-          {/* Courses Section */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Featured Courses</h2>
-            <div className="flex bg-white/20 rounded-full p-1">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-full transition-all duration-300 ${
-                  viewMode === "grid"
-                    ? "bg-white/90 text-blue-600"
-                    : "text-white/70 hover:text-white"
-                }`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-full transition-all duration-300 ${
-                  viewMode === "list"
-                    ? "bg-white/90 text-blue-600"
-                    : "text-white/70 hover:text-white"
-                }`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background/50">
+        <div className="max-w-md w-full mx-auto p-6">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 mx-auto flex items-center justify-center">
+              <Search className="w-8 h-8 text-destructive" />
             </div>
-          </div>
-
-          <div
-            className={`grid gap-6 ${
-              viewMode === "grid" ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
-            }`}
-          >
-            {courses.map((course) => (
-              <CourseCard key={course._id} course={course}  />
-            ))}
-          </div>
-
-          {/* Load More Section */}
-          <div className="text-center mt-12">
-            <Button className="bg-white/95 backdrop-blur-sm text-blue-600 border-2 border-white/30 px-8 py-3 rounded-full font-semibold hover:bg-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
-              Load More Courses
+            <h3 className="text-lg font-semibold">Something went wrong</h3>
+            <p className="text-muted-foreground text-sm">{error}</p>
+            <Button variant="outline" onClick={() => window.location.reload()} size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
             </Button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Course Catalog</h1>
+              <p className="text-muted-foreground text-sm mt-1">Discover and master new skills</p>
+            </div>
+            
+            {/* View Toggle */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("grid")}
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="icon"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Search and Filter */}
+          <div className="mt-6">
+            <SearchFilter />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Results Summary */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-1">
+            <h2 className="text-sm font-medium">
+              {courses.length} {courses.length === 1 ? 'course' : 'courses'} available
+            </h2>
+            {(selectedCategory !== "all" || searchQuery) && (
+              <p className="text-sm text-muted-foreground">
+                {selectedCategory !== "all" && `Category: ${selectedCategory}`}
+                {searchQuery && `Search: "${searchQuery}"`}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Courses Grid/List */}
+        {courses.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="max-w-sm mx-auto space-y-4">
+              <div className="w-12 h-12 rounded-full bg-primary/10 mx-auto flex items-center justify-center">
+                <Search className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-medium">No courses found</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery || selectedCategory !== "all" 
+                  ? "Try adjusting your search or filter criteria"
+                  : "Check back later for new courses"
+                }
+              </p>
+              {(searchQuery || selectedCategory !== "all") && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory("all");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            className={`grid gap-6 ${
+              viewMode === "grid" 
+                ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
+                : "grid-cols-1 max-w-3xl mx-auto"
+            }`}
+          >
+            {courses.map((course) => (
+              <CourseCard key={course._id} course={course} viewMode={viewMode} />
+            ))}
+          </div>
+        )}
+
+        {/* Load More */}
+        {courses.length > 0 && courses.length >= 6 && (
+          <div className="text-center mt-12">
+            <Button variant="outline">
+              Load More
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
