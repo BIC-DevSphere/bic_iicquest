@@ -12,7 +12,8 @@ import {
   updateSessionProgress,
   endSession,
   cancelInvitation,
-  updateCollaborationAvailability
+  updateCollaborationAvailability,
+  getSessionNotifications
 } from '../controllers/peerLearningController.js';
 
 const router = express.Router();
@@ -39,5 +40,8 @@ router.post('/sessions/:sessionId/end', endSession);
 
 // User collaboration availability
 router.put('/availability', updateCollaborationAvailability);
+
+// Get session notifications for invitation senders
+router.get('/sessions/notifications', getSessionNotifications);
 
 export default router; 

@@ -141,4 +141,16 @@ export const updateCollaborationAvailability = async (isAvailable) => {
   } catch (error) {
     throw error;
   }
+};
+
+// Check for invitation status updates (for senders)
+export const checkInvitationUpdates = async () => {
+  const response = await axiosInstance.get('/peer-learning/invitations/sent?status=accepted');
+  return response.data;
+};
+
+// Get notification for session start (for invitation senders)
+export const checkForSessionNotifications = async () => {
+  const response = await axiosInstance.get('/peer-learning/sessions/notifications');
+  return response.data;
 }; 

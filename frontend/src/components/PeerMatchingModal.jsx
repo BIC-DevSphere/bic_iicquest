@@ -26,7 +26,9 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { getPeerMatches, sendPeerInvitation } from '@/services/peerLearningService';
+import socketService from '@/services/socketService';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const PeerMatchingModal = ({ isOpen, onClose, courseId, chapterId, levelId, courseTitle }) => {
   const [matches, setMatches] = useState([]);
@@ -37,12 +39,73 @@ const PeerMatchingModal = ({ isOpen, onClose, courseId, chapterId, levelId, cour
   const [sessionType, setSessionType] = useState('content_learning');
   const [studyMode, setStudyMode] = useState('guided');
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [waitingForAcceptance, setWaitingForAcceptance] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen && courseId && chapterId && levelId) {
       fetchPeerMatches();
+      
+      // Ensure WebSocket connection for peer matching
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      if (token && !socketService.isSocketConnected()) {
+        socketService.connect(token).then(() => {
+          console.log('✅ Connected to WebSocket for peer matching');
+          socketService.joinPeerLearning();
+        }).catch(error => {
+          console.error('❌ Failed to connect to WebSocket:', error);
+          toast.error('Failed to connect to real-time service');
+        });
+      } else if (socketService.isSocketConnected()) {
+        console.log('✅ WebSocket already connected, joining peer learning lobby');
+        socketService.joinPeerLearning();
+      }
     }
   }, [isOpen, courseId, chapterId, levelId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Set up WebSocket listener for invitation acceptance
+      socketService.onInvitationAccepted((notification) => {
+        console.log('🎉 Invitation accepted!', notification);
+        
+        setWaitingForAcceptance(false);
+        toast.success(notification.message);
+        
+        // Navigate to the session as leader
+        navigate(`/course/${notification.invitation.course._id}/chapter/${notification.invitation.chapter}/level/${notification.invitation.level}`, {
+          state: { 
+            learningMode: 'peer',
+            peerSession: notification.session,
+            isSessionLeader: true
+          }
+        });
+        
+        onClose();
+      });
+    }
+
+    // Only cleanup when component unmounts, not when modal closes
+    // This ensures WebSocket stays connected for invitation notifications
+    return () => {
+      // Only remove listeners if we're not waiting for acceptance
+      if (!waitingForAcceptance) {
+        socketService.removeListener('invitation-accepted-notification');
+      }
+    };
+  }, [isOpen, navigate, onClose, waitingForAcceptance]);
+
+  const startWaitingForAcceptance = () => {
+    setWaitingForAcceptance(true);
+    
+    // Auto-stop waiting after 5 minutes
+    setTimeout(() => {
+      if (waitingForAcceptance) {
+        setWaitingForAcceptance(false);
+        toast.error('Invitation expired. The peer did not respond in time.');
+      }
+    }, 5 * 60 * 1000);
+  };
 
   const fetchPeerMatches = async () => {
     try {
@@ -82,15 +145,17 @@ const PeerMatchingModal = ({ isOpen, onClose, courseId, chapterId, levelId, cour
 
       await sendPeerInvitation(invitationData);
       
-      toast.success(`Invitation sent to ${selectedUser.fullName}!`);
+      toast.success(`Invitation sent to ${selectedUser.fullName}! Waiting for response...`);
       setShowInviteForm(false);
       setSelectedUser(null);
       setInvitationMessage('');
-      onClose();
+      
+      // Start waiting for WebSocket notification
+      startWaitingForAcceptance();
+      
     } catch (error) {
       console.error('Error sending invitation:', error);
       toast.error(error.response?.data?.message || 'Failed to send invitation');
-    } finally {
       setSendingInvitation(null);
     }
   };
@@ -129,7 +194,45 @@ const PeerMatchingModal = ({ isOpen, onClose, courseId, chapterId, levelId, cour
           </p>
         </DialogHeader>
 
-        {!showInviteForm ? (
+        {waitingForAcceptance ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-6 max-w-md">
+              <div className="relative">
+                <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto">
+                  <Send className="w-10 h-10 text-purple-600" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-gray-900">Invitation Sent!</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Your learning invitation has been sent. We're waiting for your peer to respond. 
+                  You'll be automatically redirected when they accept the invitation.
+                </p>
+              </div>
+              
+              <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+                <Clock className="w-4 h-4" />
+                <span>This may take a few minutes</span>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setWaitingForAcceptance(false);
+                  socketService.removeListener('invitation-accepted-notification');
+                  toast.info('Stopped waiting for response');
+                }}
+                className="w-full"
+              >
+                Cancel Waiting
+              </Button>
+            </div>
+          </div>
+        ) : !showInviteForm ? (
           <div className="space-y-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">

@@ -243,7 +243,7 @@ export const getReceivedInvitations = async (req, res) => {
     const invitations = await PeerInvitation.find({
       invitee: userId,
       status: status,
-      expiresAt: { $gt: new Date() } // Only non-expired invitations
+      expiresAt: { $gt: new Date() } // Only non-expired invitations1m
     })
     .populate('inviter', 'username fullName profilePicture bio')
     .populate('course', 'title description technologies')
@@ -339,6 +339,20 @@ export const respondToInvitation = async (req, res) => {
       const populatedSession = await PeerSession.findById(session._id)
         .populate('participants.user', 'username fullName profilePicture')
         .populate('course', 'title description');
+
+      // Import the socket emitter and notify the invitation sender
+      const { emitToUser } = await import('../sockets/peerLearningSocket.js');
+      
+      // Notify the invitation sender via WebSocket
+      const notificationSent = emitToUser(invitation.inviter._id.toString(), 'invitation-accepted-notification', {
+        invitation: invitation,
+        session: populatedSession,
+        sessionId: session.sessionId,
+        message: `${invitation.invitee.fullName || 'Someone'} accepted your invitation!`,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log(`WebSocket notification sent to inviter ${invitation.inviter._id}: ${notificationSent}`);
 
       res.status(200).json({
         message: 'Invitation accepted successfully',
@@ -595,6 +609,85 @@ export const updateCollaborationAvailability = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating collaboration availability:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get session notifications for current user (when invitations are accepted)
+export const getSessionNotifications = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log('Checking session notifications for user:', userId);
+
+    // Find recently accepted invitations where current user was the inviter
+    // Extended to 10 minutes to ensure we catch recent acceptances
+    const recentlyAccepted = await PeerInvitation.find({
+      inviter: userId,
+      status: 'accepted',
+      updatedAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) } // Last 10 minutes
+    })
+    .populate('invitee', 'username fullName profilePicture')
+    .populate('course', 'title description')
+    .sort({ updatedAt: -1 });
+
+    console.log(`Found ${recentlyAccepted.length} recently accepted invitations`);
+
+    // Get session data for these invitations
+    const notifications = [];
+    for (const invitation of recentlyAccepted) {
+      console.log('Processing invitation:', invitation._id, 'sessionId:', invitation.sessionId);
+      
+      if (invitation.sessionId) {
+        try {
+          const session = await PeerSession.findOne({ sessionId: invitation.sessionId })
+            .populate('participants.user', 'username fullName profilePicture');
+          
+          console.log('Found session:', session ? session.sessionId : 'null', 'status:', session?.status);
+          
+          if (session && session.status === 'active') {
+            notifications.push({
+              type: 'invitation_accepted',
+              invitation: invitation,
+              session: session,
+              message: `${invitation.invitee.fullName} accepted your invitation!`,
+              timestamp: invitation.updatedAt
+            });
+          }
+        } catch (sessionError) {
+          console.error('Error finding session:', sessionError);
+        }
+      }
+    }
+
+    console.log(`Returning ${notifications.length} notifications`);
+    
+    // If no notifications found, let's check what invitations exist
+    if (notifications.length === 0) {
+      const allInvitations = await PeerInvitation.find({ inviter: userId })
+        .populate('invitee', 'username fullName')
+        .sort({ createdAt: -1 })
+        .limit(5);
+      
+      console.log('Recent invitations for debugging:', allInvitations.map(inv => ({
+        id: inv._id,
+        status: inv.status,
+        sessionId: inv.sessionId,
+        createdAt: inv.createdAt,
+        updatedAt: inv.updatedAt,
+        invitee: inv.invitee.fullName
+      })));
+    }
+    
+    res.status(200).json({ 
+      notifications,
+      debug: {
+        userId,
+        acceptedInvitationsCount: recentlyAccepted.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching session notifications:', error);
     res.status(500).json({ message: error.message });
   }
 }; 

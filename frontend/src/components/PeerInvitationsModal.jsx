@@ -26,6 +26,7 @@ import {
   respondToInvitation, 
   cancelInvitation 
 } from '@/services/peerLearningService';
+import socketService from '@/services/socketService';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -63,9 +64,17 @@ const PeerInvitationsModal = ({ isOpen, onClose }) => {
   const handleAcceptInvitation = async (invitationId) => {
     try {
       setResponding(invitationId);
+      
+      // Connect to WebSocket first if not already connected
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      if (token && !socketService.isSocketConnected()) {
+        await socketService.connect(token);
+        socketService.joinPeerLearning();
+      }
+      
       const response = await respondToInvitation(invitationId, 'accept');
       
-      toast.success('Invitation accepted! Starting peer session...');
+      toast.success('Invitation accepted! Joining peer session...');
       
       // Navigate to the level with peer session data
       const invitation = receivedInvitations.find(inv => inv._id === invitationId);
@@ -73,7 +82,8 @@ const PeerInvitationsModal = ({ isOpen, onClose }) => {
         navigate(`/course/${invitation.course._id}/chapter/${invitation.chapter}/level/${invitation.level}`, {
           state: { 
             learningMode: 'peer',
-            peerSession: response.session
+            peerSession: response.session,
+            isSessionLeader: false // The accepting user is the participant
           }
         });
         onClose();
