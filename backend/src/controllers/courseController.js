@@ -609,49 +609,98 @@ const executeCodeWithTestCase = async (userCode, testCase) => {
             }
           }
         }
-      } else if (variableName) {
-        // Variable-based test case
+      } else if (variableName || testCase.testCode.includes('type(')) {
+        // Variable-based test case or Python type checking
         const expectedValue = testCase.expectedOutput;
         
-        // Check if variable is declared and assigned correctly
-        const declarationPatterns = [
-          new RegExp(`let\\s+${variableName}\\s*=\\s*([^;\\n]+)`),
-          new RegExp(`const\\s+${variableName}\\s*=\\s*([^;\\n]+)`),
-          new RegExp(`var\\s+${variableName}\\s*=\\s*([^;\\n]+)`),
-          new RegExp(`${variableName}\\s*=\\s*([^;\\n]+)`)
-        ];
+        // Handle Python type checking specifically
+        if (testCase.testCode.includes('type(') && testCase.testCode.includes('== int')) {
+          const varMatch = testCase.testCode.match(/type\((\w+)\)/);
+          const targetVariable = varMatch ? varMatch[1] : null;
+          
+          if (targetVariable) {
+            // Check if variable is declared and assigned an integer
+            const declarationPatterns = [
+              new RegExp(`${targetVariable}\\s*=\\s*([^\\s#;\\n]+)`),
+              new RegExp(`let\\s+${targetVariable}\\s*=\\s*([^\\s#;\\n]+)`),
+              new RegExp(`const\\s+${targetVariable}\\s*=\\s*([^\\s#;\\n]+)`),
+              new RegExp(`var\\s+${targetVariable}\\s*=\\s*([^\\s#;\\n]+)`)
+            ];
 
-        let assignedValue = null;
-        for (const pattern of declarationPatterns) {
-          const match = userCode.match(pattern);
-          if (match) {
-            assignedValue = match[1].trim().replace(/['"`;]/g, '');
-            break;
+            let assignedValue = null;
+            for (const pattern of declarationPatterns) {
+              const match = userCode.match(pattern);
+              if (match) {
+                assignedValue = match[1].trim().replace(/['"`;]/g, '');
+                break;
+              }
+            }
+
+            if (assignedValue !== null) {
+              // Check if it's an integer and matches expected value
+              const numValue = parseInt(assignedValue, 10);
+              if (!isNaN(numValue) && numValue.toString() === assignedValue && numValue.toString() === expectedValue.toString()) {
+                output = expectedValue;
+                passed = true;
+              } else if (!isNaN(numValue) && numValue.toString() === assignedValue) {
+                output = assignedValue;
+                passed = false; // It's an integer but wrong value
+              } else {
+                output = `${targetVariable} is not an integer or wrong value`;
+                passed = false;
+              }
+            } else {
+              output = `Variable '${targetVariable}' not found or not assigned`;
+              passed = false;
+            }
+          } else {
+            output = 'Cannot find target variable in type check';
+            passed = false;
+          }
+        } else if (variableName) {
+          // Regular variable assignment test
+          const expectedValue = testCase.expectedOutput;
+          
+          // Check if variable is declared and assigned correctly
+          const declarationPatterns = [
+            new RegExp(`let\\s+${variableName}\\s*=\\s*([^;\\n]+)`),
+            new RegExp(`const\\s+${variableName}\\s*=\\s*([^;\\n]+)`),
+            new RegExp(`var\\s+${variableName}\\s*=\\s*([^;\\n]+)`),
+            new RegExp(`${variableName}\\s*=\\s*([^;\\n]+)`)
+          ];
+
+          let assignedValue = null;
+          for (const pattern of declarationPatterns) {
+            const match = userCode.match(pattern);
+            if (match) {
+              assignedValue = match[1].trim().replace(/['"`;]/g, '');
+              break;
+            }
+          }
+
+          if (assignedValue !== null) {
+            if (assignedValue === expectedValue.toString()) {
+              output = expectedValue;
+              passed = true;
+            } else {
+              output = assignedValue;
+              passed = false;
+            }
+          } else {
+            output = `Variable '${variableName}' not found or not assigned`;
+            passed = false;
           }
         }
-
-                 if (assignedValue !== null) {
-           if (assignedValue === expectedValue.toString()) {
-             output = expectedValue;
-             passed = true;
-           } else {
-             output = assignedValue;
-             passed = false;
-           }
-         } else {
-           output = `Variable '${variableName}' not found or not assigned`;
-           passed = false;
-         }
-      } else {
-        // Generic test case - check if expected output is in the code
-        if (userCode.includes(testCase.expectedOutput)) {
-          output = testCase.expectedOutput;
-          passed = true;
-        } else {
-          output = 'Code does not produce expected output';
-          passed = false;
+              } else {
+          // Generic test case - check if expected output is in the code
+          if (userCode.includes(testCase.expectedOutput)) {
+            output = testCase.expectedOutput;
+            passed = true;
+          } else {
+            output = 'Code does not produce expected output';
+            passed = false;
+          }
         }
-      }
 
       resolve({ output, passed });
       

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import toast from 'react-hot-toast';
 import {
   ChevronLeft,
   Play,
@@ -15,21 +16,24 @@ import {
   Code,
   Terminal,
   Timer,
-  Target
+  Target,
+  Loader2,
+  Zap,
+  Clock
 } from "lucide-react";
 import {
   getCourseById,
   getChapterById,
   getLevelById,
   getLevelTestCases,
-  getNextLevel,
-  executeTestCases
+  getNextLevel
 } from "@/services/courseService";
 import { 
   getCourseProgress, 
   updateLevelProgress, 
   completeLevelTest 
 } from "@/services/userProgressService";
+import { testCodeWithPiston } from "@/services/codeExecutor";
 
 const LevelTestPage = () => {
   const { courseId, chapterId, levelId } = useParams();
@@ -56,6 +60,7 @@ const LevelTestPage = () => {
   const [maxAttempts] = useState(5);
   const [codeHistory, setCodeHistory] = useState([]);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [language, setLanguage] = useState('python'); // Default language
 
   useEffect(() => {
     fetchTestData();
@@ -64,29 +69,15 @@ const LevelTestPage = () => {
   // Timer effect
   useEffect(() => {
     let interval = null;
-    if (isTimerRunning) {
+    if (isTimerRunning && testStartTime) {
       interval = setInterval(() => {
-        setElapsedTime(prevTime => prevTime + 1);
+        setElapsedTime(Date.now() - testStartTime);
       }, 1000);
     } else if (!isTimerRunning) {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
-
-  // Start timer when test data is loaded
-  useEffect(() => {
-    if (level && testCases.length > 0 && !isTimerRunning) {
-      setIsTimerRunning(true);
-      setTestStartTime(Date.now());
-    }
-  }, [level, testCases]);
-
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  }, [isTimerRunning, testStartTime]);
 
   const fetchTestData = async () => {
     try {
@@ -121,6 +112,7 @@ const LevelTestPage = () => {
       }
 
       setTestStartTime(Date.now());
+      setIsTimerRunning(true);
       setError(null);
     } catch (err) {
       setError(err.message || "Failed to fetch test data");
@@ -133,19 +125,19 @@ const LevelTestPage = () => {
   const runTests = async () => {
     // Check for empty code
     if (!userCode.trim()) {
-      alert("Please write some code before running tests!");
+      toast.error("Please write some code before running tests!");
       return;
     }
 
     // Check for code with only comments
-    const codeWithoutComments = userCode.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '').trim();
+    const codeWithoutComments = userCode.replace(/\/\*[\s\S]*?\*\/|\/\/.*$|#.*$/gm, '').trim();
     if (!codeWithoutComments) {
-      alert("Please write some executable code (not just comments) before running tests!");
+      toast.error("Please write some executable code (not just comments) before running tests!");
       return;
     }
 
     if (testAttempts >= maxAttempts) {
-      alert(`Maximum attempts (${maxAttempts}) reached. Please review your code carefully.`);
+      toast.error(`Maximum attempts (${maxAttempts}) reached. Please review your code carefully.`);
       return;
     }
 
@@ -162,22 +154,31 @@ const LevelTestPage = () => {
     setCodeHistory(prev => [...prev, codeSnapshot]);
 
     try {
-      // Execute tests on the backend
-      const response = await executeTestCases(courseId, chapterId, levelId, userCode);
-      const results = response.results;
+      toast.loading("Executing code...", { id: 'execution' });
+      
+      // Execute tests using online code execution API
+      const results = await testCodeWithPiston(userCode, testCases, language);
+      
       setTestResults(results);
       
       const allPassed = results.every(result => result.passed);
       setAllTestsPassed(allPassed);
 
+      toast.dismiss('execution');
+
       if (allPassed) {
         setIsTimerRunning(false);
         setShowSubmitConfirm(true);
+        toast.success("🎉 All tests passed! Ready to submit your solution.");
+      } else {
+        const failedCount = results.filter(r => !r.passed).length;
+        toast.error(`${failedCount} test${failedCount > 1 ? 's' : ''} failed. Check the results below.`);
       }
+      
     } catch (error) {
       console.error("Error running tests:", error);
-      const errorMessage = error.response?.data?.message || "Failed to run tests. Please try again.";
-      alert(errorMessage);
+      toast.dismiss('execution');
+      toast.error("Failed to execute code. Please try again.");
     } finally {
       setIsTestRunning(false);
     }
@@ -200,7 +201,14 @@ const LevelTestPage = () => {
       setShowSubmitConfirm(false);
       
       // Show success message
-      alert("Solution submitted successfully! You can now proceed to the next level.");
+      toast.success("🎉 Solution submitted successfully! You can now proceed to the next level.", {
+        duration: 4000,
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          fontWeight: '600',
+        },
+      });
       
       // Optionally navigate to next level if available
       if (nextLevel?.nextLevel || nextLevel?.courseCompleted) {
@@ -211,11 +219,9 @@ const LevelTestPage = () => {
       }
     } catch (error) {
       console.error("Error submitting solution:", error);
-      alert("Failed to submit solution. Please try again.");
+      toast.error("Failed to submit solution. Please try again.");
     }
   };
-
-
 
   const handleBackToContent = () => {
     navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}`);
@@ -235,6 +241,20 @@ const LevelTestPage = () => {
     if (currentHintIndex < level.hints.length - 1) {
       setCurrentHintIndex(currentHintIndex + 1);
     }
+  };
+
+  const formatTime = (milliseconds) => {
+    if (!milliseconds) return "0ms";
+    const seconds = Math.floor(milliseconds / 1000);
+    const ms = milliseconds % 1000;
+    return seconds > 0 ? `${seconds}.${ms}s` : `${ms}ms`;
+  };
+
+  const formatElapsedTime = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -376,7 +396,7 @@ const LevelTestPage = () => {
                 <CardHeader>
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Terminal className="w-5 h-5 text-purple-600" />
-                    Test Results
+                    Execution Results
                   </h3>
                 </CardHeader>
                 <CardContent>
@@ -388,56 +408,76 @@ const LevelTestPage = () => {
                           result.passed ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          {result.passed ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <X className="w-5 h-5 text-red-600" />
-                          )}
-                          <span className={`font-medium ${
-                            result.passed ? 'text-green-800' : 'text-red-800'
-                          }`}>
-                            Test Case {index + 1}: {result.passed ? 'PASSED' : 'FAILED'}
-                          </span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {result.passed ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <X className="w-5 h-5 text-red-600" />
+                            )}
+                            <span className={`font-medium ${
+                              result.passed ? 'text-green-800' : 'text-red-800'
+                            }`}>
+                              Test Case {index + 1}: {result.passed ? 'PASSED' : 'FAILED'}
+                            </span>
+                          </div>
+                          
+                          {/* Execution Metrics */}
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            {result.executionTime && (
+                              <div className="flex items-center gap-1">
+                                <Timer className="w-3 h-3" />
+                                <span>{formatTime(result.executionTime * 1000)}</span>
+                              </div>
+                            )}
+                            {result.memoryUsage && (
+                              <div className="flex items-center gap-1">
+                                <Target className="w-3 h-3" />
+                                <span>{result.memoryUsage} KB</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <p className="text-sm text-gray-600 mb-3">{result.testCase}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <p className="text-gray-600">Expected:</p>
-                            <code className="text-green-600 font-mono block bg-gray-50 p-2 rounded">{result.expected}</code>
+                            <p className="text-sm font-medium text-gray-700 mb-1">Expected:</p>
+                            <div className="bg-white p-2 rounded border font-mono text-sm">
+                              {result.expected}
+                            </div>
                           </div>
                           <div>
-                            <p className="text-gray-600">Actual:</p>
-                            <code className={`font-mono block p-2 rounded ${
-                              result.passed ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
+                            <p className="text-sm font-medium text-gray-700 mb-1">Actual:</p>
+                            <div className={`p-2 rounded border font-mono text-sm ${
+                              result.passed ? 'bg-green-100' : 'bg-red-100'
                             }`}>
                               {result.actual}
-                            </code>
+                            </div>
                           </div>
                         </div>
                         
                         {result.error && (
-                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                            <p className="text-sm text-red-800">
-                              <strong>Error:</strong> {result.error}
-                            </p>
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-red-700 mb-1">Error:</p>
+                            <div className="bg-red-100 p-2 rounded border text-sm text-red-800 font-mono">
+                              {result.error}
+                            </div>
                           </div>
                         )}
                         
                         {!result.passed && result.hint && (
-                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                            <p className="text-sm text-yellow-800">
-                              <Lightbulb className="w-4 h-4 inline mr-1" />
-                              Hint: {result.hint}
-                            </p>
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-yellow-700 mb-1">💡 Hint:</p>
+                            <div className="bg-yellow-100 p-2 rounded border text-sm text-yellow-800">
+                              {result.hint}
+                            </div>
                           </div>
                         )}
                       </div>
                     )) : (
-                      <div className="text-center text-gray-500 py-8">
-                        <Terminal className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                        <p>Run tests to see results here</p>
-                      </div>
+                      <p className="text-center text-gray-500 py-8">No test results yet. Click "Run Code" to see results.</p>
                     )}
                   </div>
                 </CardContent>
@@ -452,53 +492,86 @@ const LevelTestPage = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Code className="w-5 h-5 text-purple-600" />
+                    <Code className="w-5 h-5 text-blue-600" />
                     Your Solution
                   </h3>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={runTests}
+                  
+                  {/* Language Selector */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="language" className="text-sm font-medium text-gray-700">
+                      Language:
+                    </label>
+                    <select
+                      id="language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={isTestRunning}
-                      className="flex items-center gap-2"
                     >
-                      {isTestRunning ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Running Tests...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Run Tests
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setUserCode(level.starterCode || '');
-                        setTestResults([]);
-                        setAllTestsPassed(false);
-                        setTestAttempts(0);
-                        setCurrentHintIndex(0);
-                        setCodeHistory([]);
-                      }}
-                      disabled={isTestRunning}
-                      className="flex items-center gap-2"
-                    >
-                      Reset Code
-                    </Button>
+                      <option value="python">Python 3</option>
+                      <option value="java">Java</option>
+                      <option value="javascript">JavaScript</option>
+                      <option value="cpp">C++</option>
+                      <option value="c">C</option>
+                    </select>
                   </div>
                 </div>
+                
+                {/* Timer */}
+                {isTimerRunning && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Clock className="w-4 h-4" />
+                    <span>Time: {formatElapsedTime(elapsedTime)}</span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={userCode}
                   onChange={(e) => setUserCode(e.target.value)}
-                  placeholder="Write your solution here..."
-                  className="font-mono text-sm min-h-[400px] resize-none"
+                  placeholder={`Write your ${language} code here...`}
+                  className="min-h-[300px] font-mono text-sm"
+                  style={{ fontFamily: 'Consolas, Monaco, "Courier New", monospace' }}
                   disabled={isTestRunning}
                 />
+                
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-4">
+                    <Button 
+                      onClick={runTests} 
+                      disabled={isTestRunning}
+                      className="flex items-center gap-2"
+                    >
+                      {isTestRunning ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Executing...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          Run Code
+                        </>
+                      )}
+                    </Button>
+                    
+                    <div className="text-sm text-gray-600">
+                      Attempts: {testAttempts}/{maxAttempts}
+                    </div>
+                  </div>
+                  
+                  {level.hints && level.hints.length > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowHints(!showHints)}
+                      className="flex items-center gap-2"
+                      disabled={isTestRunning}
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                      {showHints ? 'Hide Hints' : 'Show Hints'}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

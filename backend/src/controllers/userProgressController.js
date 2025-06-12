@@ -158,24 +158,43 @@ export const completeLevelTest = async (req, res) => {
     });
 
     if (!progress) {
-      return res.status(404).json({ message: 'Progress not found' });
+      // Initialize progress if it doesn't exist
+      progress = new UserProgress({
+        user: userId,
+        course: courseId,
+        status: 'in_progress',
+        startedAt: new Date()
+      });
     }
 
-    // Find chapter and level progress
-    const chapterProgress = progress.chapterProgress.find(cp => 
+    // Find or create chapter progress
+    let chapterProgress = progress.chapterProgress.find(cp => 
       cp.chapter.toString() === chapterId
     );
 
     if (!chapterProgress) {
-      return res.status(404).json({ message: 'Chapter progress not found' });
+      chapterProgress = {
+        chapter: chapterId,
+        status: 'in_progress',
+        startedAt: new Date(),
+        levelProgress: []
+      };
+      progress.chapterProgress.push(chapterProgress);
     }
 
-    const levelProgress = chapterProgress.levelProgress.find(lp => 
+    // Find or create level progress
+    let levelProgress = chapterProgress.levelProgress.find(lp => 
       lp.level.toString() === levelId
     );
 
     if (!levelProgress) {
-      return res.status(404).json({ message: 'Level progress not found' });
+      levelProgress = {
+        level: levelId,
+        status: 'in_progress',
+        startedAt: new Date(),
+        testCaseProgress: []
+      };
+      chapterProgress.levelProgress.push(levelProgress);
     }
 
     // Mark level as completed
@@ -247,14 +266,12 @@ const awardTechnologyBadges = async (userId, courseId) => {
       course.technologies.forEach(tech => {
         // Check if user already has this technology
         const existingTech = user.earnedTechnologies.find(et => 
-          et.name === tech.name && et.proficiencyLevel === tech.proficiencyLevel
+          et.name === tech.name
         );
 
         if (!existingTech) {
           user.earnedTechnologies.push({
             name: tech.name,
-            proficiencyLevel: tech.proficiencyLevel,
-            description: tech.description,
             earnedFrom: {
               course: courseId,
               earnedAt: new Date()
@@ -264,14 +281,14 @@ const awardTechnologyBadges = async (userId, courseId) => {
 
         // Add technology badge for each technology
         const existingTechBadge = user.badges.find(badge => 
-          badge.name === `${tech.name} ${tech.proficiencyLevel.charAt(0).toUpperCase() + tech.proficiencyLevel.slice(1)}` &&
+          badge.name === `${tech.name} Technology` &&
           badge.category === 'achievement'
         );
 
         if (!existingTechBadge) {
           user.badges.push({
-            name: `${tech.name} ${tech.proficiencyLevel.charAt(0).toUpperCase() + tech.proficiencyLevel.slice(1)}`,
-            description: `Earned ${tech.proficiencyLevel} level proficiency in ${tech.name}`,
+            name: `${tech.name} Technology`,
+            description: `Earned proficiency in ${tech.name}`,
             icon: 'code',
             category: 'achievement',
             earnedAt: new Date()

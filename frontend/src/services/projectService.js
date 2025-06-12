@@ -110,3 +110,93 @@ export const updateApplicationStatus = async (projectId, applicationId, status) 
         throw error;
     }
 };
+
+// Get project collaboration data (objectives, goals, chat)
+export const getProjectCollaboration = async (projectId) => {
+    try {
+        const response = await axiosInstance.get(`/projects/${projectId}/collaboration`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Add project objective
+export const addProjectObjective = async (projectId, objectiveData) => {
+    try {
+        const response = await axiosInstance.post(`/projects/${projectId}/objectives`, objectiveData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Update project objective
+export const updateProjectObjective = async (projectId, objectiveId, updateData) => {
+    try {
+        const response = await axiosInstance.put(`/projects/${projectId}/objectives/${objectiveId}`, updateData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Add weekly goals
+export const addWeeklyGoals = async (projectId, goalsData) => {
+    try {
+        const response = await axiosInstance.post(`/projects/${projectId}/weekly-goals`, goalsData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Update weekly goal completion
+export const updateWeeklyGoal = async (projectId, weeklyGoalId, goalId, completionData) => {
+    try {
+        const response = await axiosInstance.put(`/projects/${projectId}/weekly-goals/${weeklyGoalId}/goals/${goalId}`, completionData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Send message to group chat
+export const sendMessage = async (groupChatId, messageData) => {
+    try {
+        const response = await axiosInstance.post(`/projects/groupchat/${groupChatId}/message`, messageData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Get group chat messages
+export const getMessages = async (groupChatId) => {
+    try {
+        const response = await axiosInstance.get(`/projects/groupchat/${groupChatId}/messages`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Update message
+export const updateMessage = async (groupChatId, messageId, messageData) => {
+    try {
+        const response = await axiosInstance.put(`/projects/groupchat/${groupChatId}/message/${messageId}`, messageData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Delete message
+export const deleteMessage = async (groupChatId, messageId) => {
+    try {
+        const response = await axiosInstance.delete(`/projects/groupchat/${groupChatId}/message/${messageId}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
