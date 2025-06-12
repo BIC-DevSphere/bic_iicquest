@@ -200,3 +200,81 @@ export const deleteMessage = async (groupChatId, messageId) => {
         throw error;
     }
 };
+
+// Upload file to project
+export const uploadProjectFile = async (projectId, fileData) => {
+    try {
+        const formData = new FormData();
+        formData.append('file', fileData.file);
+        formData.append('description', fileData.description || '');
+        
+        const response = await axiosInstance.post(`/projects/${projectId}/files`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Get project files
+export const getProjectFiles = async (projectId) => {
+    try {
+        const response = await axiosInstance.get(`/projects/${projectId}/files`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Delete project file
+export const deleteProjectFile = async (projectId, fileId) => {
+    try {
+        const response = await axiosInstance.delete(`/projects/${projectId}/files/${fileId}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Get project activity feed
+export const getProjectActivity = async (projectId) => {
+    try {
+        const response = await axiosInstance.get(`/projects/${projectId}/activity`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Invite member to project
+export const inviteProjectMember = async (projectId, inviteData) => {
+    try {
+        const response = await axiosInstance.post(`/projects/${projectId}/invite`, inviteData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Remove member from project
+export const removeProjectMember = async (projectId, memberId) => {
+    try {
+        const response = await axiosInstance.delete(`/projects/${projectId}/members/${memberId}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Update member role
+export const updateMemberRole = async (projectId, memberId, roleData) => {
+    try {
+        const response = await axiosInstance.put(`/projects/${projectId}/members/${memberId}/role`, roleData);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};

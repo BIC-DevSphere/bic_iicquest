@@ -31,7 +31,8 @@ import {
 import { 
   getCourseProgress, 
   updateLevelProgress, 
-  completeLevelTest 
+  completeLevelTest,
+  initializeProgress 
 } from "@/services/userProgressService";
 import { testCodeWithPiston } from "@/services/codeExecutor";
 
@@ -60,6 +61,7 @@ const LevelTestPage = () => {
   const [maxAttempts] = useState(5);
   const [codeHistory, setCodeHistory] = useState([]);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [language, setLanguage] = useState('python'); // Default language
 
   useEffect(() => {
@@ -145,6 +147,21 @@ const LevelTestPage = () => {
     setTestResults([]);
     setTestAttempts(prev => prev + 1);
 
+    // Update progress to mark level as in progress (first attempt only)
+    if (testAttempts === 0) {
+      try {
+        await initializeProgress({ courseId });
+        await updateLevelProgress({
+          courseId,
+          chapterId,
+          levelId,
+          timeSpent: Math.floor(elapsedTime / 60000) || 1
+        });
+      } catch (error) {
+        console.log("Error updating level progress:", error);
+      }
+    }
+
     // Save code to history
     const codeSnapshot = {
       attempt: testAttempts + 1,
@@ -185,23 +202,40 @@ const LevelTestPage = () => {
   };
 
   const submitSolution = async () => {
+    setIsSubmitting(true);
+    
     try {
-      // Update progress
-      const timeSpent = Math.floor(elapsedTime / 60); // minutes
-      await completeLevelTest({
+      toast.loading("Submitting your solution...", { id: 'submit' });
+      
+      // Ensure progress is initialized first
+      try {
+        await initializeProgress({ courseId });
+      } catch (initError) {
+        console.log("Progress already initialized or error:", initError.message);
+      }
+
+      // Update progress - ensure the data structure matches backend expectations
+      const timeSpent = Math.floor(elapsedTime / 60000); // Convert to minutes
+      
+      const submissionData = {
         courseId,
         chapterId,
         levelId,
         score: 100,
-        timeSpent,
-        code: userCode,
-        attempts: testAttempts
-      });
+        timeSpent: timeSpent > 0 ? timeSpent : 1, // Ensure at least 1 minute
+        code: userCode
+      };
+
+      console.log("Submitting solution with data:", submissionData);
+      
+      const result = await completeLevelTest(submissionData);
+      console.log("Submission result:", result);
       
       setShowSubmitConfirm(false);
+      toast.dismiss('submit');
       
       // Show success message
-      toast.success("🎉 Solution submitted successfully! You can now proceed to the next level.", {
+      toast.success("🎉 Solution submitted successfully! Level completed!", {
         duration: 4000,
         style: {
           background: '#10b981',
@@ -210,30 +244,61 @@ const LevelTestPage = () => {
         },
       });
       
-      // Optionally navigate to next level if available
-      if (nextLevel?.nextLevel || nextLevel?.courseCompleted) {
-        handleNextLevel();
-      } else {
-        // Navigate back to content page
-        handleBackToContent();
+      // Refresh progress data to reflect completion
+      try {
+        const updatedProgress = await getCourseProgress(courseId);
+        setProgress(updatedProgress);
+        console.log("Updated progress after completion:", updatedProgress);
+      } catch (progressError) {
+        console.log("Error fetching updated progress:", progressError);
       }
+
+      // Small delay to let the backend process the completion
+      setTimeout(() => {
+        // Navigate based on next level availability
+        if (nextLevel?.nextLevel || nextLevel?.courseCompleted) {
+          handleNextLevel();
+        } else {
+          // Navigate back to content page to see the completed status
+          handleBackToContent();
+        }
+      }, 2000); // Increased delay to ensure backend processing
+      
     } catch (error) {
       console.error("Error submitting solution:", error);
-      toast.error("Failed to submit solution. Please try again.");
+      setShowSubmitConfirm(false);
+      toast.dismiss('submit');
+      
+      // More specific error handling
+      if (error.response?.data?.message) {
+        toast.error(`Failed to submit: ${error.response.data.message}`);
+      } else {
+        toast.error("Failed to submit solution. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleBackToContent = () => {
+    console.log("Navigating back to content page");
     navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}`);
   };
 
   const handleNextLevel = () => {
+    console.log("Handling next level navigation", nextLevel);
     if (nextLevel?.nextLevel && nextLevel?.nextChapter) {
+      console.log("Navigating to next chapter and level");
       navigate(`/course/${courseId}/chapter/${nextLevel.nextChapter._id}/level/${nextLevel.nextLevel._id}`);
     } else if (nextLevel?.nextLevel) {
+      console.log("Navigating to next level in same chapter");
       navigate(`/course/${courseId}/chapter/${chapterId}/level/${nextLevel.nextLevel._id}`);
     } else if (nextLevel?.courseCompleted) {
+      console.log("Course completed, navigating to overview");
       navigate(`/course/${courseId}/overview`);
+    } else {
+      console.log("No next level found, going back to content");
+      handleBackToContent();
     }
   };
 
@@ -686,13 +751,25 @@ const LevelTestPage = () => {
                   Attempts: {testAttempts}
                 </p>
                 <div className="flex gap-3">
-                  <Button onClick={submitSolution} className="flex-1">
-                    Submit Solution
+                  <Button 
+                    onClick={submitSolution} 
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Solution"
+                    )}
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setShowSubmitConfirm(false)}
                     className="flex-1"
+                    disabled={isSubmitting}
                   >
                     Continue Testing
                   </Button>

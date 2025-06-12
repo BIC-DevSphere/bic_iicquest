@@ -100,6 +100,141 @@ export const createCourse = async (req, res) => {
   }
 };
 
+// Create a complete course with all chapters, levels, content, and test cases
+export const createCompleteCourse = async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      technologies,
+      tags,
+      estimatedHours,
+      learningOutcomes,
+      requirements,
+      chapters,
+      isPublished = false
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !category || !chapters || !Array.isArray(chapters)) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: title, description, category, and chapters array' 
+      });
+    }
+
+    // Validate chapters structure
+    for (let i = 0; i < chapters.length; i++) {
+      const chapter = chapters[i];
+      if (!chapter.title || !chapter.description || !chapter.levels || !Array.isArray(chapter.levels)) {
+        return res.status(400).json({ 
+          message: `Chapter ${i + 1}: Missing required fields - title, description, and levels array` 
+        });
+      }
+
+      // Validate levels structure
+      for (let j = 0; j < chapter.levels.length; j++) {
+        const level = chapter.levels[j];
+        if (!level.title || !level.description || !level.solutionCode) {
+          return res.status(400).json({ 
+            message: `Chapter ${i + 1}, Level ${j + 1}: Missing required fields - title, description, and solutionCode` 
+          });
+        }
+
+        // Validate content structure if provided
+        if (level.content && Array.isArray(level.content)) {
+          for (let k = 0; k < level.content.length; k++) {
+            const content = level.content[k];
+            if (!content.title || !content.content || !content.content.text) {
+              return res.status(400).json({ 
+                message: `Chapter ${i + 1}, Level ${j + 1}, Content ${k + 1}: Missing required fields - title and content.text` 
+              });
+            }
+          }
+        }
+
+        // Validate test cases structure if provided
+        if (level.testCases && Array.isArray(level.testCases)) {
+          for (let k = 0; k < level.testCases.length; k++) {
+            const testCase = level.testCases[k];
+            if (!testCase.description || !testCase.testCode || !testCase.expectedOutput) {
+              return res.status(400).json({ 
+                message: `Chapter ${i + 1}, Level ${j + 1}, Test Case ${k + 1}: Missing required fields - description, testCode, and expectedOutput` 
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Process and structure the course data
+    const processedChapters = chapters.map((chapter, chapterIndex) => ({
+      title: chapter.title,
+      description: chapter.description,
+      order: chapter.order || chapterIndex + 1,
+      prerequisites: chapter.prerequisites || [],
+      levels: chapter.levels.map((level, levelIndex) => ({
+        title: level.title,
+        description: level.description,
+        order: level.order || levelIndex + 1,
+        estimatedTime: level.estimatedTime || 30,
+        starterCode: level.starterCode || '',
+        solutionCode: level.solutionCode,
+        hints: level.hints || [],
+        content: level.content ? level.content.map((content, contentIndex) => ({
+          title: content.title,
+          content: {
+            text: content.content.text,
+            media: content.content.media || null,
+            examples: content.content.examples || []
+          },
+          order: content.order || contentIndex + 1
+        })) : [],
+        testCases: level.testCases ? level.testCases.map(testCase => ({
+          description: testCase.description,
+          testCode: testCase.testCode,
+          expectedOutput: testCase.expectedOutput,
+          hint: testCase.hint || ''
+        })) : []
+      }))
+    }));
+
+    // Create the complete course
+    const course = new Course({
+      title,
+      description,
+      category,
+      technologies: technologies || [],
+      chapters: processedChapters,
+      tags: tags || [],
+      estimatedHours: estimatedHours || 0,
+      learningOutcomes: learningOutcomes || [],
+      requirements: requirements || [],
+      isPublished
+    });
+
+    const newCourse = await course.save();
+    
+    res.status(201).json({
+      message: 'Course created successfully with all chapters, levels, content, and test cases',
+      course: newCourse,
+      summary: {
+        totalChapters: newCourse.chapters.length,
+        totalLevels: newCourse.chapters.reduce((total, chapter) => total + chapter.levels.length, 0),
+        totalContent: newCourse.chapters.reduce((total, chapter) => 
+          total + chapter.levels.reduce((levelTotal, level) => levelTotal + level.content.length, 0), 0),
+        totalTestCases: newCourse.chapters.reduce((total, chapter) => 
+          total + chapter.levels.reduce((levelTotal, level) => levelTotal + level.testCases.length, 0), 0)
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      message: 'Error creating course', 
+      error: error.message 
+    });
+  }
+};
+
 // Add chapter to course
 export const addChapter = async (req, res) => {
   try {

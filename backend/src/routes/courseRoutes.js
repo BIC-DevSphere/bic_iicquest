@@ -8,6 +8,7 @@ import {
   searchCourses,
   getCoursesByLearningOutcome,
   createCourse,
+  createCompleteCourse,
   addChapter,
   addLevel,
   addContent,
@@ -46,6 +47,7 @@ router.post('/:courseId/chapters/:chapterId/levels/:levelId/execute-tests', exec
 
 // Course creation routes (admin only)
 router.post('/', createCourse);
+router.post('/complete', createCompleteCourse);
 router.post('/:courseId/chapters', addChapter);
 router.post('/:courseId/chapters/:chapterId/levels', addLevel);
 router.post('/:courseId/chapters/:chapterId/levels/:levelId/content', addContent);
