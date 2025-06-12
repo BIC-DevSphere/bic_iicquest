@@ -1,8 +1,36 @@
 import SideBar from "@/components/SideBar";
-import React from "react";
+import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
+import socketService from "@/services/socketService";
 
 const MainLayout = () => {
+  // Initialize WebSocket connection for authenticated users
+  useEffect(() => {
+    const initializeWebSocket = async () => {
+      // Check for auth token (using both possible keys for compatibility)
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      if (token && !socketService.isSocketConnected()) {
+        try {
+          console.log('🚀 Initializing global WebSocket connection...');
+          await socketService.connect(token);
+          socketService.joinPeerLearning();
+        } catch (error) {
+          console.error('❌ Failed to initialize WebSocket:', error);
+        }
+      }
+    };
+
+    initializeWebSocket();
+
+    // Cleanup WebSocket on unmount
+    return () => {
+      if (socketService.isSocketConnected()) {
+        socketService.disconnect();
+      }
+    };
+  }, []);
+
   return (
     <div className="flex min-h-screen gradient-bg-primary">
       <SideBar />

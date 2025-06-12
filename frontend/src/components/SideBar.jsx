@@ -1,6 +1,9 @@
-import { BookOpenIcon, HomeIcon, FolderGit2, UsersIcon, BriefcaseBusiness, GraduationCap, Sparkles, UserCircle2 } from "lucide-react";
+import { BookOpenIcon, HomeIcon, FolderGit2, UsersIcon, BriefcaseBusiness, GraduationCap, Sparkles, UserCircle2, Bell } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import PeerInvitationsModal from "./PeerInvitationsModal";
+import { getReceivedInvitations } from "@/services/peerLearningService";
+import { Button } from "@/components/ui/button";
 
 const SidebarItems = [
   { label: "Home", location: "/home", icon: <HomeIcon className="w-5 h-5" /> },
@@ -14,12 +17,32 @@ const SidebarItems = [
 const SideBar = () => {
   const location = useLocation();
   const [activeItem, setactiveItem] = useState("Home");
+  const [showInvitationsModal, setShowInvitationsModal] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState(0);
 
   useEffect(() => {
     const currentPath = location.pathname;
     const activeItem = SidebarItems.find((item) => item.location === currentPath);
     setactiveItem(activeItem?.label || "Home");
   }, [location]);
+
+  useEffect(() => {
+    // Fetch pending invitations count
+    const fetchInvitations = async () => {
+      try {
+        const data = await getReceivedInvitations('pending');
+        setPendingInvitations(data.invitations?.length || 0);
+      } catch (error) {
+        console.error('Error fetching invitations:', error);
+      }
+    };
+
+    fetchInvitations();
+    
+    // Poll for new invitations every 30 seconds
+    const interval = setInterval(fetchInvitations, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="sidebar-container">
@@ -35,10 +58,24 @@ const SideBar = () => {
               <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center shadow-elegant">
                 <GraduationCap className="w-7 h-7 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-xl font-bold text-sidebar-foreground tracking-tight">IIC Quest</h2>
                 <p className="text-xs text-sidebar-foreground/70 font-medium">Interactive Learning</p>
               </div>
+              {/* Peer Learning Notifications */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowInvitationsModal(true)}
+                className="relative h-10 w-10 hover:bg-sidebar-accent/20"
+              >
+                <Bell className="w-5 h-5 text-sidebar-foreground/70" />
+                {pendingInvitations > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center animate-pulse">
+                    {pendingInvitations > 9 ? '9+' : pendingInvitations}
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
 
@@ -96,6 +133,18 @@ const SideBar = () => {
           </div>
         </div>
       </div>
+
+      {/* Peer Invitations Modal */}
+      <PeerInvitationsModal 
+        isOpen={showInvitationsModal} 
+        onClose={() => {
+          setShowInvitationsModal(false);
+          // Refresh invitation count after closing modal
+          getReceivedInvitations('pending').then(data => {
+            setPendingInvitations(data.invitations?.length || 0);
+          }).catch(console.error);
+        }} 
+      />
     </div>
   );
 };
