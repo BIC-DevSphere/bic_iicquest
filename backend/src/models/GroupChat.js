@@ -6,10 +6,19 @@ const membersSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
+    role: {
+        type: String,
+        enum: ['admin', 'member'],
+        default: 'member'
+    },
     joinDate: {
         type: Date,
         default: Date.now,
     },
+    lastReadAt: {
+        type: Date,
+        default: Date.now
+    }
 });
 
 const messageSchema = new mongoose.Schema({

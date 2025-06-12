@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
         `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/test-cases`,
     getNextLevel: (courseId, chapterId, levelId) => 
         `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/next`,
+    executeTestCases: (courseId, chapterId, levelId) => 
+        `/courses/${courseId}/chapters/${chapterId}/levels/${levelId}/execute-tests`,
 
     // Course creation endpoints
     createCourse: "/courses",

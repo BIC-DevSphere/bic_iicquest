@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,7 +16,13 @@ import {
   Trophy,
   Target,
   Lightbulb,
-  Code
+  Code,
+  Users,
+  MessageSquare,
+  Video,
+  Mic,
+  Send,
+  UserPlus
 } from "lucide-react";
 import {
   getCourseById,
@@ -28,6 +36,8 @@ import { getCourseProgress, updateLevelProgress } from "@/services/userProgressS
 const LevelContentPage = () => {
   const { courseId, chapterId, levelId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const learningMode = location.state?.learningMode || 'solo';
   
   const [course, setCourse] = useState(null);
   const [chapter, setChapter] = useState(null);
@@ -39,10 +49,28 @@ const LevelContentPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLevelCompleted, setIsLevelCompleted] = useState(false);
+  const [peer, setPeer] = useState(null);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [showPeerPanel, setShowPeerPanel] = useState(false);
 
   useEffect(() => {
     fetchLevelData();
   }, [courseId, chapterId, levelId]);
+
+  useEffect(() => {
+    if (learningMode === 'peer') {
+      // Simulate peer connection (replace with actual peer connection logic)
+      setPeer({
+        id: 'peer123',
+        name: 'Learning Partner',
+        avatar: '👤',
+        status: 'online'
+      });
+    }
+  }, [learningMode]);
 
   const fetchLevelData = async () => {
     try {
@@ -117,6 +145,28 @@ const LevelContentPage = () => {
 
   const formatDuration = (minutes) => {
     return `${minutes} min`;
+  };
+
+  const handleSendMessage = () => {
+    if (!newMessage.trim()) return;
+    
+    const message = {
+      id: Date.now(),
+      sender: 'me',
+      text: newMessage,
+      timestamp: new Date().toISOString()
+    };
+    
+    setMessages(prev => [...prev, message]);
+    setNewMessage('');
+  };
+
+  const toggleAudio = () => {
+    setIsAudioEnabled(!isAudioEnabled);
+  };
+
+  const toggleVideo = () => {
+    setIsVideoEnabled(!isVideoEnabled);
   };
 
   if (loading) {
@@ -204,12 +254,23 @@ const LevelContentPage = () => {
                 Completed
               </Badge>
             )}
+
+            {learningMode === 'peer' && peer && (
+              <Button
+                variant="outline"
+                onClick={() => setShowPeerPanel(!showPeerPanel)}
+                className="flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                {showPeerPanel ? 'Hide Peer Panel' : 'Show Peer Panel'}
+              </Button>
+            )}
           </div>
         </div>
 
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Main Content Area */}
-          <div className="lg:col-span-3">
+          <div className={`${showPeerPanel ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
             {content.length > 0 ? (
               <Card className="mb-6">
                 <CardHeader>
@@ -333,64 +394,118 @@ const LevelContentPage = () => {
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            {/* Level Info */}
-            <Card className="mb-6">
-              <CardHeader>
-                <h3 className="text-lg font-semibold">Level Info</h3>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-600">Estimated Time</p>
-                  <p className="font-semibold">{formatDuration(level.estimatedTime || 30)}</p>
-                </div>
-                
-                {level.hints?.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Available Hints</p>
-                    <Badge variant="secondary">{level.hints.length} hints</Badge>
-                  </div>
-                )}
-                
-                {content.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Reading Progress</p>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all" 
-                        style={{ width: `${((currentContentIndex + 1) / content.length) * 100}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {currentContentIndex + 1} of {content.length} sections
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Hints */}
-            {level.hints?.length > 0 && (
-              <Card>
+          {/* Peer Learning Panel */}
+          {learningMode === 'peer' && showPeerPanel && (
+            <div className="lg:col-span-1">
+              <Card className="sticky top-4">
                 <CardHeader>
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-yellow-600" />
-                    Hints
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Peer Learning</h3>
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      <UserPlus className="w-4 h-4" />
+                      {peer.name}
+                    </Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {level.hints.map((hint, index) => (
-                      <div key={index} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">{hint}</p>
+                  <Tabs defaultValue="chat" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="chat" className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        Chat
+                      </TabsTrigger>
+                      <TabsTrigger value="call" className="flex items-center gap-2">
+                        <Video className="w-4 h-4" />
+                        Call
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="chat" className="mt-4">
+                      <div className="space-y-4">
+                        {/* Messages */}
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto p-4 bg-gray-50 rounded-lg">
+                          {messages.map((message) => (
+                            <div
+                              key={message.id}
+                              className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-[80%] p-3 rounded-lg ${
+                                  message.sender === 'me'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-800'
+                                }`}
+                              >
+                                <p>{message.text}</p>
+                                <span className="text-xs opacity-70">
+                                  {new Date(message.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Message Input */}
+                        <div className="flex gap-2">
+                          <Textarea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type your message..."
+                            className="flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                          />
+                          <Button onClick={handleSendMessage}>
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </TabsContent>
+
+                    <TabsContent value="call" className="mt-4">
+                      <div className="space-y-4">
+                        {/* Video Call Controls */}
+                        <div className="flex justify-center gap-4">
+                          <Button
+                            variant={isAudioEnabled ? "default" : "outline"}
+                            onClick={toggleAudio}
+                            className="w-12 h-12 rounded-full"
+                          >
+                            <Mic className="w-5 h-5" />
+                          </Button>
+                          <Button
+                            variant={isVideoEnabled ? "default" : "outline"}
+                            onClick={toggleVideo}
+                            className="w-12 h-12 rounded-full"
+                          >
+                            <Video className="w-5 h-5" />
+                          </Button>
+                        </div>
+
+                        {/* Video Preview */}
+                        <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                          {isVideoEnabled ? (
+                            <div className="text-center">
+                              <p className="text-gray-600">Video preview</p>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <Video className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                              <p className="text-gray-600">Camera is off</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

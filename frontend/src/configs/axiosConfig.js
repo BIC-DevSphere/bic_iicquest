@@ -46,7 +46,7 @@ axiosInstance.interceptors.response.use(
     // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
       console.log('Unauthorized access - clearing token');
-      localStorage.removeItem('authToken');
+      // localStorage.removeItem('authToken');
       
       // Optional: Redirect to login page
       // window.location.href = '/login';

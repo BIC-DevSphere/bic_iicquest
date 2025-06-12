@@ -62,6 +62,83 @@ const applicationSchema = new mongoose.Schema({
   },
 })
 
+const ObjectiveSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'critical'],
+    default: 'medium'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'in_progress', 'completed', 'blocked'],
+    default: 'pending'
+  },
+  assignedTo: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  dueDate: {
+    type: Date
+  },
+  completedAt: {
+    type: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const WeeklyGoalSchema = new mongoose.Schema({
+  weekStarting: {
+    type: Date,
+    required: true
+  },
+  goals: [{
+    description: {
+      type: String,
+      required: true
+    },
+    isCompleted: {
+      type: Boolean,
+      default: false
+    },
+    completedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    completedAt: {
+      type: Date
+    }
+  }],
+  notes: {
+    type: String,
+    default: ''
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const ProjectSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -122,6 +199,33 @@ const ProjectSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  objectives: [ObjectiveSchema],
+  weeklyGoals: [WeeklyGoalSchema],
+  projectTimeline: {
+    startDate: {
+      type: Date
+    },
+    expectedEndDate: {
+      type: Date
+    },
+    actualEndDate: {
+      type: Date
+    }
+  },
+  collaborationSettings: {
+    autoCreateGroupChat: {
+      type: Boolean,
+      default: true
+    },
+    allowMembersToAddObjectives: {
+      type: Boolean,
+      default: false
+    },
+    requireApprovalForGoals: {
+      type: Boolean,
+      default: false
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now

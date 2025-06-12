@@ -133,6 +133,18 @@ export const getNextLevel = async (courseId, chapterId, levelId) => {
     }
 };
 
+// Execute test cases
+export const executeTestCases = async (courseId, chapterId, levelId, userCode) => {
+    try {
+        const response = await axiosInstance.post(API_ENDPOINTS.executeTestCases(courseId, chapterId, levelId), {
+            userCode
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
 // Legacy functions for backward compatibility
 export const getChapterDetails = getChapterById;
 export const getLevelDetails = getLevelById; 

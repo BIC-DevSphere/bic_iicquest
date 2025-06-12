@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import toast from 'react-hot-toast';
 import {
   ChevronLeft,
   Play,
@@ -15,7 +16,10 @@ import {
   Code,
   Terminal,
   Timer,
-  Target
+  Target,
+  Loader2,
+  Zap,
+  Clock
 } from "lucide-react";
 import {
   getCourseById,
@@ -27,8 +31,10 @@ import {
 import { 
   getCourseProgress, 
   updateLevelProgress, 
-  completeLevelTest 
+  completeLevelTest,
+  initializeProgress 
 } from "@/services/userProgressService";
+import { testCodeWithPiston } from "@/services/codeExecutor";
 
 const LevelTestPage = () => {
   const { courseId, chapterId, levelId } = useParams();
@@ -55,6 +61,8 @@ const LevelTestPage = () => {
   const [maxAttempts] = useState(5);
   const [codeHistory, setCodeHistory] = useState([]);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [language, setLanguage] = useState('python'); // Default language
 
   useEffect(() => {
     fetchTestData();
@@ -63,29 +71,15 @@ const LevelTestPage = () => {
   // Timer effect
   useEffect(() => {
     let interval = null;
-    if (isTimerRunning) {
+    if (isTimerRunning && testStartTime) {
       interval = setInterval(() => {
-        setElapsedTime(prevTime => prevTime + 1);
+        setElapsedTime(Date.now() - testStartTime);
       }, 1000);
     } else if (!isTimerRunning) {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
-
-  // Start timer when test data is loaded
-  useEffect(() => {
-    if (level && testCases.length > 0 && !isTimerRunning) {
-      setIsTimerRunning(true);
-      setTestStartTime(Date.now());
-    }
-  }, [level, testCases]);
-
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  }, [isTimerRunning, testStartTime]);
 
   const fetchTestData = async () => {
     try {
@@ -120,6 +114,7 @@ const LevelTestPage = () => {
       }
 
       setTestStartTime(Date.now());
+      setIsTimerRunning(true);
       setError(null);
     } catch (err) {
       setError(err.message || "Failed to fetch test data");
@@ -130,19 +125,42 @@ const LevelTestPage = () => {
   };
 
   const runTests = async () => {
+    // Check for empty code
     if (!userCode.trim()) {
-      alert("Please write some code before running tests!");
+      toast.error("Please write some code before running tests!");
+      return;
+    }
+
+    // Check for code with only comments
+    const codeWithoutComments = userCode.replace(/\/\*[\s\S]*?\*\/|\/\/.*$|#.*$/gm, '').trim();
+    if (!codeWithoutComments) {
+      toast.error("Please write some executable code (not just comments) before running tests!");
       return;
     }
 
     if (testAttempts >= maxAttempts) {
-      alert(`Maximum attempts (${maxAttempts}) reached. Please review your code carefully.`);
+      toast.error(`Maximum attempts (${maxAttempts}) reached. Please review your code carefully.`);
       return;
     }
 
     setIsTestRunning(true);
     setTestResults([]);
     setTestAttempts(prev => prev + 1);
+
+    // Update progress to mark level as in progress (first attempt only)
+    if (testAttempts === 0) {
+      try {
+        await initializeProgress({ courseId });
+        await updateLevelProgress({
+          courseId,
+          chapterId,
+          levelId,
+          timeSpent: Math.floor(elapsedTime / 60000) || 1
+        });
+      } catch (error) {
+        console.log("Error updating level progress:", error);
+      }
+    }
 
     // Save code to history
     const codeSnapshot = {
@@ -153,77 +171,134 @@ const LevelTestPage = () => {
     setCodeHistory(prev => [...prev, codeSnapshot]);
 
     try {
-      // Simulate test execution (in a real app, you'd send this to a backend)
-      const results = await simulateTestExecution(userCode, testCases);
+      toast.loading("Executing code...", { id: 'execution' });
+      
+      // Execute tests using online code execution API
+      const results = await testCodeWithPiston(userCode, testCases, language);
+      
       setTestResults(results);
       
       const allPassed = results.every(result => result.passed);
       setAllTestsPassed(allPassed);
 
+      toast.dismiss('execution');
+
       if (allPassed) {
         setIsTimerRunning(false);
         setShowSubmitConfirm(true);
+        toast.success("🎉 All tests passed! Ready to submit your solution.");
+      } else {
+        const failedCount = results.filter(r => !r.passed).length;
+        toast.error(`${failedCount} test${failedCount > 1 ? 's' : ''} failed. Check the results below.`);
       }
+      
     } catch (error) {
       console.error("Error running tests:", error);
-      alert("Failed to run tests. Please try again.");
+      toast.dismiss('execution');
+      toast.error("Failed to execute code. Please try again.");
     } finally {
       setIsTestRunning(false);
     }
   };
 
   const submitSolution = async () => {
+    setIsSubmitting(true);
+    
     try {
-      // Update progress
-      const timeSpent = Math.floor(elapsedTime / 60); // minutes
-      await completeLevelTest({
+      toast.loading("Submitting your solution...", { id: 'submit' });
+      
+      // Ensure progress is initialized first
+      try {
+        await initializeProgress({ courseId });
+      } catch (initError) {
+        console.log("Progress already initialized or error:", initError.message);
+      }
+
+      // Update progress - ensure the data structure matches backend expectations
+      const timeSpent = Math.floor(elapsedTime / 60000); // Convert to minutes
+      
+      const submissionData = {
         courseId,
         chapterId,
         levelId,
         score: 100,
-        timeSpent,
-        code: userCode,
-        attempts: testAttempts
-      });
+        timeSpent: timeSpent > 0 ? timeSpent : 1, // Ensure at least 1 minute
+        code: userCode
+      };
+
+      console.log("Submitting solution with data:", submissionData);
+      
+      const result = await completeLevelTest(submissionData);
+      console.log("Submission result:", result);
       
       setShowSubmitConfirm(false);
-      // Show success message or redirect
+      toast.dismiss('submit');
+      
+      // Show success message
+      toast.success("🎉 Solution submitted successfully! Level completed!", {
+        duration: 4000,
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          fontWeight: '600',
+        },
+      });
+      
+      // Refresh progress data to reflect completion
+      try {
+        const updatedProgress = await getCourseProgress(courseId);
+        setProgress(updatedProgress);
+        console.log("Updated progress after completion:", updatedProgress);
+      } catch (progressError) {
+        console.log("Error fetching updated progress:", progressError);
+      }
+
+      // Small delay to let the backend process the completion
+      setTimeout(() => {
+        // Navigate based on next level availability
+        if (nextLevel?.nextLevel || nextLevel?.courseCompleted) {
+          handleNextLevel();
+        } else {
+          // Navigate back to content page to see the completed status
+          handleBackToContent();
+        }
+      }, 2000); // Increased delay to ensure backend processing
+      
     } catch (error) {
       console.error("Error submitting solution:", error);
+      setShowSubmitConfirm(false);
+      toast.dismiss('submit');
+      
+      // More specific error handling
+      if (error.response?.data?.message) {
+        toast.error(`Failed to submit: ${error.response.data.message}`);
+      } else {
+        toast.error("Failed to submit solution. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Simulate test execution (replace with actual backend call)
-  const simulateTestExecution = async (code, testCases) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const results = testCases.map((testCase, index) => {
-          // Simple simulation - in reality, you'd execute the code against test cases
-          const passed = Math.random() > 0.3; // 70% pass rate for demo
-          return {
-            testCase: testCase.description,
-            expected: testCase.expectedOutput,
-            actual: passed ? testCase.expectedOutput : "Error: Function not implemented",
-            passed,
-            hint: testCase.hint
-          };
-        });
-        resolve(results);
-      }, 2000);
-    });
-  };
-
   const handleBackToContent = () => {
+    console.log("Navigating back to content page");
     navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}`);
   };
 
   const handleNextLevel = () => {
+    console.log("Handling next level navigation", nextLevel);
     if (nextLevel?.nextLevel && nextLevel?.nextChapter) {
+      console.log("Navigating to next chapter and level");
       navigate(`/course/${courseId}/chapter/${nextLevel.nextChapter._id}/level/${nextLevel.nextLevel._id}`);
     } else if (nextLevel?.nextLevel) {
+      console.log("Navigating to next level in same chapter");
       navigate(`/course/${courseId}/chapter/${chapterId}/level/${nextLevel.nextLevel._id}`);
     } else if (nextLevel?.courseCompleted) {
+      console.log("Course completed, navigating to overview");
       navigate(`/course/${courseId}/overview`);
+    } else {
+      console.log("No next level found, going back to content");
+      handleBackToContent();
     }
   };
 
@@ -231,6 +306,20 @@ const LevelTestPage = () => {
     if (currentHintIndex < level.hints.length - 1) {
       setCurrentHintIndex(currentHintIndex + 1);
     }
+  };
+
+  const formatTime = (milliseconds) => {
+    if (!milliseconds) return "0ms";
+    const seconds = Math.floor(milliseconds / 1000);
+    const ms = milliseconds % 1000;
+    return seconds > 0 ? `${seconds}.${ms}s` : `${ms}ms`;
+  };
+
+  const formatElapsedTime = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -307,11 +396,16 @@ const LevelTestPage = () => {
                 </span>
               </div>
               
-              {allTestsPassed && (
-                <Badge variant="default" className="bg-green-600">
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  All Tests Passed!
-                </Badge>
+              {testResults.length > 0 && (
+                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg">
+                  <Terminal className="w-5 h-5 text-gray-600" />
+                  <span className="text-gray-800 font-semibold">
+                    {testResults.filter(r => r.passed).length}/{testResults.length} tests passing
+                  </span>
+                  {allTestsPassed && (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -367,56 +461,89 @@ const LevelTestPage = () => {
                 <CardHeader>
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Terminal className="w-5 h-5 text-purple-600" />
-                    Test Results
+                    Execution Results
                   </h3>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {testResults.map((result, index) => (
+                    {testResults && testResults.length > 0 ? testResults.map((result, index) => (
                       <div 
-                        key={index} 
+                        key={`test-result-${index}`} 
                         className={`border rounded-lg p-4 ${
                           result.passed ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
-                          {result.passed ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <X className="w-5 h-5 text-red-600" />
-                          )}
-                          <span className={`font-medium ${
-                            result.passed ? 'text-green-800' : 'text-red-800'
-                          }`}>
-                            Test Case {index + 1}: {result.passed ? 'PASSED' : 'FAILED'}
-                          </span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {result.passed ? (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            ) : (
+                              <X className="w-5 h-5 text-red-600" />
+                            )}
+                            <span className={`font-medium ${
+                              result.passed ? 'text-green-800' : 'text-red-800'
+                            }`}>
+                              Test Case {index + 1}: {result.passed ? 'PASSED' : 'FAILED'}
+                            </span>
+                          </div>
+                          
+                          {/* Execution Metrics */}
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            {result.executionTime && (
+                              <div className="flex items-center gap-1">
+                                <Timer className="w-3 h-3" />
+                                <span>{formatTime(result.executionTime * 1000)}</span>
+                              </div>
+                            )}
+                            {result.memoryUsage && (
+                              <div className="flex items-center gap-1">
+                                <Target className="w-3 h-3" />
+                                <span>{result.memoryUsage} KB</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <p className="text-sm text-gray-600 mb-3">{result.testCase}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <p className="text-gray-600">Expected:</p>
-                            <code className="text-green-600 font-mono">{result.expected}</code>
+                            <p className="text-sm font-medium text-gray-700 mb-1">Expected:</p>
+                            <div className="bg-white p-2 rounded border font-mono text-sm">
+                              {result.expected}
+                            </div>
                           </div>
                           <div>
-                            <p className="text-gray-600">Actual:</p>
-                            <code className={`font-mono ${
-                              result.passed ? 'text-green-600' : 'text-red-600'
+                            <p className="text-sm font-medium text-gray-700 mb-1">Actual:</p>
+                            <div className={`p-2 rounded border font-mono text-sm ${
+                              result.passed ? 'bg-green-100' : 'bg-red-100'
                             }`}>
                               {result.actual}
-                            </code>
+                            </div>
                           </div>
                         </div>
                         
+                        {result.error && (
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-red-700 mb-1">Error:</p>
+                            <div className="bg-red-100 p-2 rounded border text-sm text-red-800 font-mono">
+                              {result.error}
+                            </div>
+                          </div>
+                        )}
+                        
                         {!result.passed && result.hint && (
-                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                            <p className="text-sm text-yellow-800">
-                              <Lightbulb className="w-4 h-4 inline mr-1" />
-                              Hint: {result.hint}
-                            </p>
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-yellow-700 mb-1">💡 Hint:</p>
+                            <div className="bg-yellow-100 p-2 rounded border text-sm text-yellow-800">
+                              {result.hint}
+                            </div>
                           </div>
                         )}
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-center text-gray-500 py-8">No test results yet. Click "Run Code" to see results.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -430,38 +557,86 @@ const LevelTestPage = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Code className="w-5 h-5 text-purple-600" />
+                    <Code className="w-5 h-5 text-blue-600" />
                     Your Solution
                   </h3>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={runTests}
+                  
+                  {/* Language Selector */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="language" className="text-sm font-medium text-gray-700">
+                      Language:
+                    </label>
+                    <select
+                      id="language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={isTestRunning}
-                      className="flex items-center gap-2"
                     >
-                      {isTestRunning ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Running Tests...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Run Tests
-                        </>
-                      )}
-                    </Button>
+                      <option value="python">Python 3</option>
+                      <option value="java">Java</option>
+                      <option value="javascript">JavaScript</option>
+                      <option value="cpp">C++</option>
+                      <option value="c">C</option>
+                    </select>
                   </div>
                 </div>
+                
+                {/* Timer */}
+                {isTimerRunning && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Clock className="w-4 h-4" />
+                    <span>Time: {formatElapsedTime(elapsedTime)}</span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={userCode}
                   onChange={(e) => setUserCode(e.target.value)}
-                  placeholder="Write your solution here..."
-                  className="font-mono text-sm min-h-[400px] resize-none"
+                  placeholder={`Write your ${language} code here...`}
+                  className="min-h-[300px] font-mono text-sm"
+                  style={{ fontFamily: 'Consolas, Monaco, "Courier New", monospace' }}
                   disabled={isTestRunning}
                 />
+                
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-4">
+                    <Button 
+                      onClick={runTests} 
+                      disabled={isTestRunning}
+                      className="flex items-center gap-2"
+                    >
+                      {isTestRunning ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Executing...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          Run Code
+                        </>
+                      )}
+                    </Button>
+                    
+                    <div className="text-sm text-gray-600">
+                      Attempts: {testAttempts}/{maxAttempts}
+                    </div>
+                  </div>
+                  
+                  {level.hints && level.hints.length > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowHints(!showHints)}
+                      className="flex items-center gap-2"
+                      disabled={isTestRunning}
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                      {showHints ? 'Hide Hints' : 'Show Hints'}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -576,13 +751,25 @@ const LevelTestPage = () => {
                   Attempts: {testAttempts}
                 </p>
                 <div className="flex gap-3">
-                  <Button onClick={submitSolution} className="flex-1">
-                    Submit Solution
+                  <Button 
+                    onClick={submitSolution} 
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Solution"
+                    )}
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => setShowSubmitConfirm(false)}
                     className="flex-1"
+                    disabled={isSubmitting}
                   >
                     Continue Testing
                   </Button>

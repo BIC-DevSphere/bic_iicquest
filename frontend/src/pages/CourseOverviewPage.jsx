@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   BookOpen,
   Clock,
@@ -14,7 +16,13 @@ import {
   Lock,
   Star,
   Target,
-  Zap
+  Zap,
+  MessageSquare,
+  Code,
+  Send,
+  UserPlus,
+  UserCheck,
+  Brain
 } from "lucide-react";
 import { getCourseById, getCourseChapters } from "@/services/courseService";
 import { getCourseProgress, initializeProgress } from "@/services/userProgressService";
@@ -27,6 +35,9 @@ const CourseOverviewPage = () => {
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showLearningModeDialog, setShowLearningModeDialog] = useState(false);
+  const [selectedLearningMode, setSelectedLearningMode] = useState(null);
+  const [peerMatchStatus, setPeerMatchStatus] = useState(null);
 
   useEffect(() => {
     fetchCourseData();
@@ -61,6 +72,29 @@ const CourseOverviewPage = () => {
   };
 
   const handleStartCourse = async () => {
+    setShowLearningModeDialog(true);
+  };
+
+  const handleLearningModeSelect = async (mode) => {
+    setSelectedLearningMode(mode);
+    
+    if (mode === 'peer') {
+      // Start peer matching process
+      setPeerMatchStatus('searching');
+      try {
+        // Simulate finding a peer (replace with actual API call)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setPeerMatchStatus('matched');
+      } catch (error) {
+        setPeerMatchStatus('error');
+      }
+    } else {
+      // Start solo learning
+      startLearning();
+    }
+  };
+
+  const startLearning = async () => {
     try {
       // Initialize progress if not exists
       if (!progress) {
@@ -71,7 +105,9 @@ const CourseOverviewPage = () => {
       if (chapters.length > 0 && chapters[0].levels?.length > 0) {
         const firstChapter = chapters[0];
         const firstLevel = firstChapter.levels[0];
-        navigate(`/course/${courseId}/chapter/${firstChapter._id}/level/${firstLevel._id}`);
+        navigate(`/course/${courseId}/chapter/${firstChapter._id}/level/${firstLevel._id}`, {
+          state: { learningMode: selectedLearningMode }
+        });
       } else {
         navigate(`/course/${courseId}/chapters`);
       }
@@ -354,6 +390,85 @@ const CourseOverviewPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Learning Mode Selection Dialog */}
+      <Dialog open={showLearningModeDialog} onOpenChange={setShowLearningModeDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Choose Your Learning Mode</DialogTitle>
+            <DialogDescription>
+              Select how you want to learn this course. You can change this later.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <RadioGroup
+              value={selectedLearningMode}
+              onValueChange={handleLearningModeSelect}
+              className="space-y-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="solo" id="solo" />
+                <label htmlFor="solo" className="flex items-center gap-2 cursor-pointer">
+                  <UserCheck className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <div className="font-semibold">Solo Learning</div>
+                    <div className="text-sm text-gray-500">
+                      Learn at your own pace, independently
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="peer" id="peer" />
+                <label htmlFor="peer" className="flex items-center gap-2 cursor-pointer">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  <div>
+                    <div className="font-semibold">Peer Learning</div>
+                    <div className="text-sm text-gray-500">
+                      Learn with a peer, discuss and solve problems together
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </RadioGroup>
+
+            {selectedLearningMode === 'peer' && (
+              <div className="mt-6 p-4 bg-purple-50 rounded-lg">
+                {peerMatchStatus === 'searching' && (
+                  <div className="flex items-center gap-3 text-purple-600">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                    <span>Finding a learning partner...</span>
+                  </div>
+                )}
+                {peerMatchStatus === 'matched' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <UserPlus className="w-5 h-5" />
+                      <span>Peer matched! Ready to start learning together.</span>
+                    </div>
+                    <Button onClick={startLearning} className="w-full">
+                      Start Learning
+                    </Button>
+                  </div>
+                )}
+                {peerMatchStatus === 'error' && (
+                  <div className="text-red-600">
+                    Failed to find a peer. Please try again or choose solo learning.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {selectedLearningMode === 'solo' && (
+              <Button onClick={startLearning} className="w-full mt-6">
+                Start Learning
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

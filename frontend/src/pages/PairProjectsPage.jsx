@@ -30,6 +30,7 @@ import {
   Info,
   X
 } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 import {
   getAllProjects,
   createProject,
@@ -43,6 +44,7 @@ import {
 import { getUserProfile } from "@/services/userService";
 
 const PairProjectsPage = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [userProjects, setUserProjects] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -701,33 +703,60 @@ const PairProjectsPage = () => {
                       
                       {/* Show different buttons based on ownership */}
                       {currentUser && project.creator._id === currentUser._id ? (
-                        // Owner can view applications
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewApplications(project._id)}
-                          className="w-full flex items-center justify-center gap-2"
-                        >
-                          <Users className="w-4 h-4" />
-                          View Applications ({project.applications?.length || 0})
-                        </Button>
-                      ) : (
-                        // Non-owners can apply if project is open
-                        project.isOpenForCollaboration && (
+                        <div className="space-y-2">
+                          {/* Collaboration workspace button for project owner */}
                           <Button
                             size="sm"
-                            onClick={() => setApplicationModalProject(project)}
-                            disabled={applyingToProject === project._id}
+                            onClick={() => navigate(`/projects/${project._id}/collaboration`)}
                             className="w-full flex items-center justify-center gap-2"
                           >
-                            {applyingToProject === project._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                            {applyingToProject === project._id ? 'Applying...' : 'Apply to Join'}
+                            <MessageSquare className="w-4 h-4" />
+                            Collaboration Workspace
                           </Button>
-                        )
+                          
+                          {/* Owner can view applications */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewApplications(project._id)}
+                            className="w-full flex items-center justify-center gap-2"
+                          >
+                            <Users className="w-4 h-4" />
+                            View Applications ({project.applications?.length || 0})
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {/* Check if user is a collaborator */}
+                          {currentUser && project.collaborators.some(collab => collab.user._id === currentUser._id) ? (
+                            // User is a collaborator - show workspace button
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/projects/${project._id}/collaboration`)}
+                              className="w-full flex items-center justify-center gap-2"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                              Collaboration Workspace
+                            </Button>
+                          ) : (
+                            // Non-collaborators can apply if project is open
+                            project.isOpenForCollaboration && (
+                              <Button
+                                size="sm"
+                                onClick={() => setApplicationModalProject(project)}
+                                disabled={applyingToProject === project._id}
+                                className="w-full flex items-center justify-center gap-2"
+                              >
+                                {applyingToProject === project._id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Send className="w-4 h-4" />
+                                )}
+                                {applyingToProject === project._id ? 'Applying...' : 'Apply to Join'}
+                              </Button>
+                            )
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -848,6 +877,18 @@ const PairProjectsPage = () => {
                         <Calendar className="w-4 h-4 mr-2" />
                         Created {formatDate(project.createdAt)}
                       </div>
+                    </div>
+
+                    {/* Collaboration Workspace Button */}
+                    <div className="mb-3">
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/projects/${project._id}/collaboration`)}
+                        className="w-full flex items-center justify-center gap-2"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Open Workspace
+                      </Button>
                     </div>
 
                     <div className="flex gap-2">

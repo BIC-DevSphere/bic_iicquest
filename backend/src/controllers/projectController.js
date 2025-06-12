@@ -5,11 +5,12 @@ import GroupChat from '../models/GroupChat.js';
 
 // Check if user can create project (completed 2 courses)
 const canCreateProject = async (userId) => {
-  const completedCourses = await UserProgress.find({
-    user: userId,
-    status: 'completed'
-  });
-  return completedCourses.length >= 2;
+  // const completedCourses = await UserProgress.find({
+  //   user: userId,
+  //   status: 'completed'
+  // });
+  // return completedCourses.length >= 2;
+  return true;
 };
 
 // Get all projects
@@ -369,12 +370,17 @@ export const updateApplicationStatus = async (req, res) => {
     
     application.status = status;
     
-    // If accepted, add user as collaborator
+    // If accepted, add user as collaborator and to group chat
     if (status === 'accepted') {
       project.collaborators.push({
         user: application.userId,
         role: 'General Contributor'
       });
+
+      // Automatically add user to group chat if it exists or create one
+      if (project.collaborationSettings?.autoCreateGroupChat !== false) {
+        await ensureProjectGroupChat(project._id, project.creator, application.userId);
+      }
     }
     
     await project.save();
@@ -424,9 +430,10 @@ export const createProjectGroupChat = async (req, res) => {
     }
 
     const groupChat = await GroupChat.create({
+      projectId: projectId,
       groupName: foundProject.title,
       adminId,
-      members,
+      members: members.map(memberId => ({ userId: memberId })),
       isActive: true
     });
 
@@ -555,7 +562,7 @@ export const getMessages = async (req, res) => {
     const groupChatId = req.params.groupChatId;
 
     // Find group chat
-    const groupChat = await GroupChat.findById(groupChatId).populate('messages.userId', 'name email');
+    const groupChat = await GroupChat.findById(groupChatId).populate('messages.userId', 'username fullName');
     if (!groupChat) {
       return res.status(404).json({ message: 'Group chat not found' });
     }
@@ -563,6 +570,331 @@ export const getMessages = async (req, res) => {
     res.status(200).json(groupChat.messages);
   } catch (error) {
     console.error(error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Helper function to ensure project has a group chat
+const ensureProjectGroupChat = async (projectId, creatorId, newMemberId = null) => {
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) return null;
+
+    let groupChat;
+    
+    if (project.groupChatId) {
+      // Group chat exists, add new member if provided
+      groupChat = await GroupChat.findById(project.groupChatId);
+      if (groupChat && newMemberId) {
+        const isAlreadyMember = groupChat.members.some(member => 
+          member.userId.toString() === newMemberId.toString()
+        );
+        
+        if (!isAlreadyMember) {
+          groupChat.members.push({
+            userId: newMemberId,
+            role: 'member'
+          });
+          await groupChat.save();
+        }
+      }
+    } else {
+      // Create new group chat
+      const allMembers = [
+        { userId: creatorId, role: 'admin' },
+        ...project.collaborators.map(collab => ({ 
+          userId: collab.user, 
+          role: 'member' 
+        }))
+      ];
+
+      if (newMemberId && !allMembers.some(m => m.userId.toString() === newMemberId.toString())) {
+        allMembers.push({ userId: newMemberId, role: 'member' });
+      }
+
+      groupChat = await GroupChat.create({
+        projectId: projectId,
+        groupName: project.title,
+        adminId: creatorId,
+        members: allMembers,
+        isActive: true
+      });
+
+      project.groupChatId = groupChat._id;
+      await project.save();
+    }
+
+    return groupChat;
+  } catch (error) {
+    console.error('Error ensuring group chat:', error);
+    return null;
+  }
+};
+
+// Add project objective
+export const addProjectObjective = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, description, priority, assignedTo, dueDate } = req.body;
+    const userId = req.user.id;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Check permissions
+    const isCreator = project.creator.toString() === userId;
+    const isCollaborator = project.collaborators.some(collab => 
+      collab.user.toString() === userId
+    );
+    const canAddObjectives = project.collaborationSettings?.allowMembersToAddObjectives || isCreator;
+
+    if (!isCreator && !isCollaborator) {
+      return res.status(403).json({ message: 'Not authorized to access this project' });
+    }
+
+    if (!canAddObjectives && !isCreator) {
+      return res.status(403).json({ message: 'Only project creator can add objectives' });
+    }
+
+    const newObjective = {
+      title,
+      description,
+      priority: priority || 'medium',
+      assignedTo: assignedTo || [],
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      createdBy: userId
+    };
+
+    project.objectives.push(newObjective);
+    await project.save();
+
+    const updatedProject = await Project.findById(projectId)
+      .populate('objectives.assignedTo', 'username fullName')
+      .populate('objectives.createdBy', 'username fullName');
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Update project objective
+export const updateProjectObjective = async (req, res) => {
+  try {
+    const { projectId, objectiveId } = req.params;
+    const { status, ...updates } = req.body;
+    const userId = req.user.id;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    const objective = project.objectives.id(objectiveId);
+    if (!objective) {
+      return res.status(404).json({ message: 'Objective not found' });
+    }
+
+    // Check permissions
+    const isCreator = project.creator.toString() === userId;
+    const isAssigned = objective.assignedTo.some(assigned => 
+      assigned.toString() === userId
+    );
+    const isObjectiveCreator = objective.createdBy.toString() === userId;
+
+    if (!isCreator && !isAssigned && !isObjectiveCreator) {
+      return res.status(403).json({ message: 'Not authorized to update this objective' });
+    }
+
+    // Update objective fields
+    Object.keys(updates).forEach(key => {
+      if (key !== 'createdBy' && key !== 'createdAt') {
+        objective[key] = updates[key];
+      }
+    });
+
+    // Handle status change
+    if (status && status !== objective.status) {
+      objective.status = status;
+      if (status === 'completed') {
+        objective.completedAt = new Date();
+      }
+    }
+
+    await project.save();
+
+    const updatedProject = await Project.findById(projectId)
+      .populate('objectives.assignedTo', 'username fullName')
+      .populate('objectives.createdBy', 'username fullName');
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Add weekly goals
+export const addWeeklyGoals = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { weekStarting, goals, notes } = req.body;
+    const userId = req.user.id;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Check if user is creator
+    if (project.creator.toString() !== userId) {
+      return res.status(403).json({ message: 'Only project creator can set weekly goals' });
+    }
+
+    const weekStart = new Date(weekStarting);
+    
+    // Check if goals for this week already exist
+    const existingWeek = project.weeklyGoals.find(week => {
+      const existingWeekStart = new Date(week.weekStarting);
+      return existingWeekStart.getTime() === weekStart.getTime();
+    });
+
+    if (existingWeek) {
+      return res.status(400).json({ message: 'Goals for this week already exist' });
+    }
+
+    const newWeeklyGoals = {
+      weekStarting: weekStart,
+      goals: goals.map(goal => ({
+        description: goal.description || goal,
+        isCompleted: false
+      })),
+      notes: notes || '',
+      createdBy: userId
+    };
+
+    project.weeklyGoals.push(newWeeklyGoals);
+    await project.save();
+
+    const updatedProject = await Project.findById(projectId)
+      .populate('weeklyGoals.createdBy', 'username fullName')
+      .populate('weeklyGoals.goals.completedBy', 'username fullName');
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Update weekly goal completion
+export const updateWeeklyGoal = async (req, res) => {
+  try {
+    const { projectId, weeklyGoalId, goalId } = req.params;
+    const { isCompleted } = req.body;
+    const userId = req.user.id;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Check if user is creator or collaborator
+    const isCreator = project.creator.toString() === userId;
+    const isCollaborator = project.collaborators.some(collab => 
+      collab.user.toString() === userId
+    );
+
+    if (!isCreator && !isCollaborator) {
+      return res.status(403).json({ message: 'Not authorized to update goals' });
+    }
+
+    const weeklyGoal = project.weeklyGoals.id(weeklyGoalId);
+    if (!weeklyGoal) {
+      return res.status(404).json({ message: 'Weekly goal not found' });
+    }
+
+    const goal = weeklyGoal.goals.id(goalId);
+    if (!goal) {
+      return res.status(404).json({ message: 'Goal not found' });
+    }
+
+    goal.isCompleted = isCompleted;
+    if (isCompleted) {
+      goal.completedBy = userId;
+      goal.completedAt = new Date();
+    } else {
+      goal.completedBy = undefined;
+      goal.completedAt = undefined;
+    }
+
+    await project.save();
+
+    const updatedProject = await Project.findById(projectId)
+      .populate('weeklyGoals.createdBy', 'username fullName')
+      .populate('weeklyGoals.goals.completedBy', 'username fullName');
+
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Get project collaboration data (objectives, goals, chat)
+export const getProjectCollaboration = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+
+    const project = await Project.findById(projectId)
+      .populate('creator', 'username fullName')
+      .populate('collaborators.user', 'username fullName')
+      .populate('objectives.assignedTo', 'username fullName')
+      .populate('objectives.createdBy', 'username fullName')
+      .populate('weeklyGoals.createdBy', 'username fullName')
+      .populate('weeklyGoals.goals.completedBy', 'username fullName');
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Check if user has access
+    const isCreator = project.creator._id.toString() === userId;
+    const isCollaborator = project.collaborators.some(collab => 
+      collab.user._id.toString() === userId
+    );
+
+    if (!isCreator && !isCollaborator) {
+      return res.status(403).json({ message: 'Not authorized to access this project' });
+    }
+
+    // Get group chat if exists
+    let groupChat = null;
+    if (project.groupChatId) {
+      groupChat = await GroupChat.findById(project.groupChatId)
+        .populate('members.userId', 'username fullName')
+        .populate('messages.userId', 'username fullName');
+    }
+
+    const collaborationData = {
+      project: {
+        _id: project._id,
+        title: project.title,
+        description: project.description,
+        status: project.status,
+        creator: project.creator,
+        collaborators: project.collaborators,
+        objectives: project.objectives,
+        weeklyGoals: project.weeklyGoals,
+        projectTimeline: project.projectTimeline,
+        collaborationSettings: project.collaborationSettings
+      },
+      groupChat,
+      userRole: isCreator ? 'creator' : 'collaborator'
+    };
+
+    res.status(200).json(collaborationData);
+  } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };

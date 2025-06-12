@@ -10,14 +10,18 @@ import {
   updateProjectStatus,
   applyForProject,
   getProjectApplications,
-  updateApplicationStatus
-,
+  updateApplicationStatus,
   viewAllApplications,
   updateMessage,
   deleteMessage,
   createProjectGroupChat,
   sendMessage,
-  getMessages
+  getMessages,
+  addProjectObjective,
+  updateProjectObjective,
+  addWeeklyGoals,
+  updateWeeklyGoal,
+  getProjectCollaboration
 } from '../controllers/projectController.js';
 import { auth } from '../middleware/auth.js';
 
@@ -42,12 +46,21 @@ router.put('/:id/status', updateProjectStatus);
 router.get('/:id/applications', getProjectApplications);
 router.put('/:projectId/applications/:applicationId/status', updateApplicationStatus);
 
-// Chat Route
-router.post('/:id/groupchat', createProjectGroupChat);
+
+// Chat Routes
+router.post('/project/:id/groupchat', createProjectGroupChat);
 router.get('/groupchat/:groupChatId/messages', getMessages);
 router.post('/groupchat/:id/message', sendMessage);
 router.put('/groupchat/:groupChatId/message/:messageId', updateMessage);
 router.delete('/groupchat/:groupChatId/message/:messageId', deleteMessage);
+
+// Collaboration Routes
+router.get('/:projectId/collaboration', getProjectCollaboration);
+router.post('/:projectId/objectives', addProjectObjective);
+router.put('/:projectId/objectives/:objectiveId', updateProjectObjective);
+router.post('/:projectId/weekly-goals', addWeeklyGoals);
+router.put('/:projectId/weekly-goals/:weeklyGoalId/goals/:goalId', updateWeeklyGoal);
+
 router.patch('/:id/status', updateProjectStatus);
 
 export default router; 

@@ -8,6 +8,7 @@ import {
   searchCourses,
   getCoursesByLearningOutcome,
   createCourse,
+  createCompleteCourse,
   addChapter,
   addLevel,
   addContent,
@@ -19,7 +20,8 @@ import {
   getLevelById,
   getLevelContent,
   getLevelTestCases,
-  getNextLevel
+  getNextLevel,
+  executeTestCases
 } from '../controllers/courseController.js';
 
 const router = express.Router();
@@ -41,9 +43,11 @@ router.get('/:courseId/chapters/:chapterId/levels/:levelId', getLevelById);
 router.get('/:courseId/chapters/:chapterId/levels/:levelId/content', getLevelContent);
 router.get('/:courseId/chapters/:chapterId/levels/:levelId/test-cases', getLevelTestCases);
 router.get('/:courseId/chapters/:chapterId/levels/:levelId/next', getNextLevel);
+router.post('/:courseId/chapters/:chapterId/levels/:levelId/execute-tests', executeTestCases);
 
 // Course creation routes (admin only)
 router.post('/', createCourse);
+router.post('/complete', createCompleteCourse);
 router.post('/:courseId/chapters', addChapter);
 router.post('/:courseId/chapters/:chapterId/levels', addLevel);
 router.post('/:courseId/chapters/:chapterId/levels/:levelId/content', addContent);
