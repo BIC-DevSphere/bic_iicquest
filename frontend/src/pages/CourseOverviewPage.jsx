@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import PeerMatchingModal from "@/components/PeerMatchingModal";
 import {
   BookOpen,
   Clock,
@@ -38,6 +39,7 @@ const CourseOverviewPage = () => {
   const [showLearningModeDialog, setShowLearningModeDialog] = useState(false);
   const [selectedLearningMode, setSelectedLearningMode] = useState(null);
   const [peerMatchStatus, setPeerMatchStatus] = useState(null);
+  const [showPeerMatchingModal, setShowPeerMatchingModal] = useState(false);
 
   useEffect(() => {
     fetchCourseData();
@@ -79,15 +81,9 @@ const CourseOverviewPage = () => {
     setSelectedLearningMode(mode);
     
     if (mode === 'peer') {
-      // Start peer matching process
-      setPeerMatchStatus('searching');
-      try {
-        // Simulate finding a peer (replace with actual API call)
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        setPeerMatchStatus('matched');
-      } catch (error) {
-        setPeerMatchStatus('error');
-      }
+      // Show peer matching modal
+      setShowLearningModeDialog(false);
+      setShowPeerMatchingModal(true);
     } else {
       // Start solo learning
       startLearning();
@@ -469,6 +465,16 @@ const CourseOverviewPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Peer Matching Modal */}
+      <PeerMatchingModal
+        isOpen={showPeerMatchingModal}
+        onClose={() => setShowPeerMatchingModal(false)}
+        courseId={courseId}
+        chapterId={chapters[0]?._id}
+        levelId={chapters[0]?.levels?.[0]?._id}
+        courseTitle={course?.title}
+      />
     </div>
   );
 };

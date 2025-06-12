@@ -10,6 +10,7 @@ import CourseLessonsListPage from "./pages/CourseLessonsListPage";
 import ChapterContents from "./pages/ChapterContents";
 import LevelContentPage from "./pages/LevelContentPage";
 import LevelTestPage from "./pages/LevelTestPage";
+import PeerTestPage from "./pages/PeerTestPage";
 import CourseOverviewPage from "./pages/CourseOverviewPage";
 import PairProjectsPage from "./pages/PairProjectsPage";
 import ProjectCollaborationPage from "./pages/ProjectCollaborationPage";
@@ -41,9 +42,16 @@ const App = () => {
           <Route path="course/:courseId/chapter/:chapterId" element={<ChapterContents />} />
           <Route path="course/:courseId/chapter/:chapterId/level/:levelId" element={<LevelContentPage />} />
           <Route path="course/:courseId/chapter/:chapterId/level/:levelId/test" element={<LevelTestPage />} />
+          <Route path="course/:courseId/chapter/:chapterId/level/:levelId/peer-test" element={<PeerTestPage />} />
         </Route>
       </Routes>
-      <Toaster
+      <Toaster 
+        containerStyle={{
+          top: '10px',
+          right: '10px',
+          bottom: 'auto',
+          left: 'auto',
+        }}
         position="top-right"
         toastOptions={{
           duration: 4000,

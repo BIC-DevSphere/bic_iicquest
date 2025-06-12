@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
+import Editor from '@monaco-editor/react';
+import toast from 'react-hot-toast';
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,7 +28,32 @@ import {
   Mic,
   Send,
   UserPlus,
-  Sparkles
+  Sparkles,
+  Share2,
+  Eye,
+  Pause,
+  SkipForward,
+  RotateCcw,
+  HelpCircle,
+  Star,
+  Bookmark,
+  ThumbsUp,
+  Settings,
+  Volume2,
+  VolumeX,
+  Camera,
+  CameraOff,
+  PhoneCall,
+  PhoneOff,
+  Monitor,
+  MousePointer,
+  Pencil,
+  FileText,
+  Download,
+  Upload,
+  Copy,
+  X,
+  XIcon
 } from "lucide-react";
 import {
   getCourseById,
@@ -32,6 +63,13 @@ import {
   getNextLevel
 } from "@/services/courseService";
 import { getCourseProgress, updateLevelProgress } from "@/services/userProgressService";
+import { 
+  getSessionById, 
+  addMessageToSession, 
+  updateSessionProgress,
+  endSession 
+} from "@/services/peerLearningService";
+import PeerMatchingModal from "@/components/PeerMatchingModal";
 
 const LevelContentPage = () => {
   const { courseId, chapterId, levelId } = useParams();
@@ -56,21 +94,175 @@ const LevelContentPage = () => {
   const [newMessage, setNewMessage] = useState('');
   const [showPeerPanel, setShowPeerPanel] = useState(false);
 
+  // Enhanced Peer Learning States
+  const [peerSession, setPeerSession] = useState(null);
+  const [isSessionLeader, setIsSessionLeader] = useState(false);
+  const [collaborativeNotes, setCollaborativeNotes] = useState('');
+  const [peerNotes, setPeerNotes] = useState('');
+  const [sharedCodeEditor, setSharedCodeEditor] = useState('');
+  const [peerProgress, setPeerProgress] = useState(0);
+  const [sessionTimer, setSessionTimer] = useState(0);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [peerCursor, setPeerCursor] = useState({ line: 0, column: 0 });
+  const [studyMode, setStudyMode] = useState('guided'); // 'guided', 'discussion', 'practice'
+  const [quizMode, setQuizMode] = useState(false);
+  const [sharedQuestions, setSharedQuestions] = useState([]);
+  const [peerAnswers, setPeerAnswers] = useState({});
+  const [voiceNotes, setVoiceNotes] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [screenSharing, setScreenSharing] = useState(false);
+  const [peerScreenShare, setPeerScreenShare] = useState(false);
+  const [sessionInsights, setSessionInsights] = useState({});
+  const [collaborativeBookmarks, setCollaborativeBookmarks] = useState([]);
+  const [peerReactions, setPeerReactions] = useState([]);
+  const [sessionGoals, setSessionGoals] = useState([]);
+  const [completedGoals, setCompletedGoals] = useState([]);
+  const [studyStreak, setStudyStreak] = useState(0);
+  const [showPeerTestModal, setShowPeerTestModal] = useState(false);
+  const [peerTestInvitation, setPeerTestInvitation] = useState(null);
+  const [isInPeerTest, setIsInPeerTest] = useState(false);
+  const [peerTestData, setPeerTestData] = useState(null);
+  const [showPeerMatchingModal, setShowPeerMatchingModal] = useState(false);
+  const [realPeerSession, setRealPeerSession] = useState(null);
+  
+  // Refs for real-time features
+  const editorRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const sessionTimerRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+
   useEffect(() => {
     fetchLevelData();
   }, [courseId, chapterId, levelId]);
 
   useEffect(() => {
     if (learningMode === 'peer') {
-      // Simulate peer connection (replace with actual peer connection logic)
-      setPeer({
-        id: 'peer123',
-        name: 'Learning Partner',
-        avatar: '👤',
-        status: 'online'
-      });
+      // Check if we have a real session from state
+      const sessionData = location.state?.peerSession;
+      if (sessionData) {
+        setRealPeerSession(sessionData);
+        initializeRealPeerSession(sessionData);
+      } else {
+        initializePeerSession();
+      }
     }
-  }, [learningMode]);
+  }, [learningMode, location.state]);
+
+  // Session timer effect
+  useEffect(() => {
+    if (isSessionActive) {
+      sessionTimerRef.current = setInterval(() => {
+        setSessionTimer(prev => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(sessionTimerRef.current);
+    }
+    return () => clearInterval(sessionTimerRef.current);
+  }, [isSessionActive]);
+
+  // Auto-scroll messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const initializeRealPeerSession = async (sessionData) => {
+    try {
+      // Fetch real session data from backend
+      const response = await getSessionById(sessionData.sessionId);
+      const session = response.session;
+      
+      // Set up real peer data
+      const peerParticipant = session.participants.find(p => p.user._id !== 'currentUserId'); // Replace with actual user ID
+      const peerData = {
+        id: peerParticipant.user._id,
+        name: peerParticipant.user.fullName,
+        avatar: peerParticipant.user.fullName.split(' ').map(n => n[0]).join('').toUpperCase(),
+        status: peerParticipant.isOnline ? 'online' : 'offline',
+        level: 'Intermediate',
+        studyTime: 45,
+        completedLevels: 12,
+        currentStreak: 7
+      };
+      
+      setPeer(peerData);
+      setRealPeerSession(session);
+      setIsSessionLeader(peerParticipant.role === 'leader');
+      setIsSessionActive(true);
+      setShowPeerPanel(true);
+      
+      // Load session messages
+      setMessages(session.messages.map(msg => ({
+        id: msg._id,
+        sender: msg.sender._id === 'currentUserId' ? 'me' : 'peer', // Replace with actual user ID check
+        text: msg.text,
+        timestamp: msg.timestamp,
+        type: msg.type
+      })));
+      
+      // Initialize session goals
+      setSessionGoals(session.sessionGoals.map(goal => goal.description));
+      setCompletedGoals(session.sessionGoals
+        .map((goal, index) => goal.isCompleted ? index : -1)
+        .filter(index => index !== -1)
+      );
+      
+      toast.success(`Connected to real session with ${peerData.name}!`);
+    } catch (error) {
+      console.error('Error initializing real peer session:', error);
+      // Fallback to simulated session
+      initializePeerSession();
+    }
+  };
+
+  const initializePeerSession = () => {
+    // Simulate peer connection with enhanced features
+    const peerData = {
+      id: 'peer123',
+      name: 'Alex Chen',
+      avatar: 'AC',
+      status: 'online',
+      level: 'Intermediate',
+      studyTime: 45,
+      completedLevels: 12,
+      currentStreak: 7
+    };
+    
+    setPeer(peerData);
+    setPeerSession({
+      id: 'session_' + Date.now(),
+      startTime: Date.now(),
+      participants: [peerData],
+      sessionType: 'collaborative_learning',
+      currentActivity: 'content_review'
+    });
+    
+    setIsSessionLeader(Math.random() > 0.5); // Randomly assign leadership
+    setIsSessionActive(true);
+    setShowPeerPanel(true);
+    
+    // Initialize session goals
+    setSessionGoals([
+      'Complete current level together',
+      'Take collaborative notes',
+      'Discuss key concepts',
+      'Practice coding exercises'
+    ]);
+
+    // Simulate initial peer messages
+    setTimeout(() => {
+      setMessages([
+        {
+          id: 1,
+          sender: 'peer',
+          text: `Hi! I'm ${peerData.name}. Ready to learn together? 🚀`,
+          timestamp: new Date().toISOString(),
+          type: 'message'
+        }
+      ]);
+    }, 1000);
+
+    toast.success(`Connected with ${peerData.name}! Starting collaborative session.`);
+  };
 
   const fetchLevelData = async () => {
     try {
@@ -147,26 +339,336 @@ const LevelContentPage = () => {
     return `${minutes} min`;
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
     
     const message = {
       id: Date.now(),
       sender: 'me',
       text: newMessage,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      type: 'message'
     };
     
     setMessages(prev => [...prev, message]);
     setNewMessage('');
+
+    // Send to real session if available
+    if (realPeerSession) {
+      try {
+        await addMessageToSession(realPeerSession.sessionId, {
+          text: newMessage,
+          type: 'message'
+        });
+      } catch (error) {
+        console.error('Error sending message to session:', error);
+      }
+    } else {
+      // Simulate peer response for demo
+      setTimeout(() => {
+        const responses = [
+          "Great point! Let me think about that...",
+          "I agree! That concept is really important.",
+          "Can you explain that part again?",
+          "That's exactly what I was thinking!",
+          "Let's work through this together step by step.",
+          "I found a helpful resource about this topic!"
+        ];
+        
+        const peerMessage = {
+          id: Date.now() + 1,
+          sender: 'peer',
+          text: responses[Math.floor(Math.random() * responses.length)],
+          timestamp: new Date().toISOString(),
+          type: 'message'
+        };
+        
+        setMessages(prev => [...prev, peerMessage]);
+      }, 1000 + Math.random() * 2000);
+    }
   };
 
   const toggleAudio = () => {
     setIsAudioEnabled(!isAudioEnabled);
+    
+    const action = !isAudioEnabled ? 'enabled' : 'disabled';
+    toast.success(`Audio ${action}`);
+    
+    // Add audio status to chat
+    const statusMessage = {
+      id: Date.now(),
+      sender: 'system',
+      text: `Audio ${action}`,
+      timestamp: new Date().toISOString(),
+      type: 'status'
+    };
+    setMessages(prev => [...prev, statusMessage]);
   };
 
   const toggleVideo = () => {
     setIsVideoEnabled(!isVideoEnabled);
+    
+    const action = !isVideoEnabled ? 'enabled' : 'disabled';
+    toast.success(`Video ${action}`);
+    
+    // Add video status to chat
+    const statusMessage = {
+      id: Date.now(),
+      sender: 'system',
+      text: `Video ${action}`,
+      timestamp: new Date().toISOString(),
+      type: 'status'
+    };
+    setMessages(prev => [...prev, statusMessage]);
+  };
+
+  // Enhanced Peer Learning Methods
+  const syncContentNavigation = (direction) => {
+    if (!isSessionLeader) {
+      toast.error("Only the session leader can navigate content for the group.");
+      return;
+    }
+    
+    handleContentNavigation(direction);
+    
+    // Notify peer about navigation
+    const navMessage = {
+      id: Date.now(),
+      sender: 'system',
+      text: `Session leader moved to ${direction} content section`,
+      timestamp: new Date().toISOString(),
+      type: 'navigation'
+    };
+    setMessages(prev => [...prev, navMessage]);
+    
+    // Update peer progress
+    const newProgress = ((currentContentIndex + (direction === 'next' ? 1 : 0)) / content.length) * 100;
+    setPeerProgress(newProgress);
+  };
+
+  const startCollaborativeTest = () => {
+    if (!level.testCases?.length) {
+      toast.error("No test cases available for this level.");
+      return;
+    }
+
+    setPeerTestInvitation({
+      levelId,
+      testCases: level.testCases,
+      invitedBy: 'me',
+      timestamp: new Date().toISOString()
+    });
+    setShowPeerTestModal(true);
+    
+    // Send invitation message
+    const inviteMessage = {
+      id: Date.now(),
+      sender: 'me',
+      text: "🎯 Invited you to take the test together! Let's solve it collaboratively.",
+      timestamp: new Date().toISOString(),
+      type: 'invitation'
+    };
+    setMessages(prev => [...prev, inviteMessage]);
+  };
+
+  const acceptPeerTest = () => {
+    setIsInPeerTest(true);
+    setShowPeerTestModal(false);
+    
+    // Initialize collaborative test data
+    setPeerTestData({
+      currentQuestion: 0,
+      answers: {},
+      peerAnswers: {},
+      startTime: Date.now(),
+      isCollaborative: true
+    });
+    
+    const acceptMessage = {
+      id: Date.now(),
+      sender: 'peer',
+      text: "✅ Accepted test invitation! Let's code together.",
+      timestamp: new Date().toISOString(),
+      type: 'system'
+    };
+    setMessages(prev => [...prev, acceptMessage]);
+    
+    // Navigate to collaborative test mode
+    navigate(`/course/${courseId}/chapter/${chapterId}/level/${levelId}/peer-test`, {
+      state: { 
+        learningMode: 'peer',
+        peerSession,
+        testData: peerTestData
+      }
+    });
+  };
+
+  const addCollaborativeNote = (note) => {
+    const timestamp = new Date().toISOString();
+    const noteEntry = {
+      id: Date.now(),
+      author: 'me',
+      content: note,
+      timestamp,
+      contentIndex: currentContentIndex
+    };
+    
+    setCollaborativeNotes(prev => prev + `\n[${new Date().toLocaleTimeString()}] You: ${note}`);
+    
+    // Simulate peer adding to notes
+    setTimeout(() => {
+      const peerNote = "Great note! I'll add my thoughts too.";
+      setCollaborativeNotes(prev => prev + `\n[${new Date().toLocaleTimeString()}] ${peer.name}: ${peerNote}`);
+    }, 2000);
+  };
+
+  const createStudyQuestion = () => {
+    const questions = [
+      "What is the main concept being discussed in this section?",
+      "How would you explain this to someone who's completely new?", 
+      "What are some real-world applications of this concept?",
+      "What challenges might we face when implementing this?",
+      "How does this relate to what we learned previously?"
+    ];
+    
+    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+    const questionObj = {
+      id: Date.now(),
+      question: randomQuestion,
+      askedBy: 'me',
+      timestamp: new Date().toISOString(),
+      contentIndex: currentContentIndex
+    };
+    
+    setSharedQuestions(prev => [...prev, questionObj]);
+    
+    const questionMessage = {
+      id: Date.now(),
+      sender: 'me',
+      text: `💡 Study Question: ${randomQuestion}`,
+      timestamp: new Date().toISOString(),
+      type: 'question'
+    };
+    setMessages(prev => [...prev, questionMessage]);
+  };
+
+  const addReaction = (emoji) => {
+    const reaction = {
+      id: Date.now(),
+      emoji,
+      sender: 'me',
+      timestamp: new Date().toISOString(),
+      contentIndex: currentContentIndex
+    };
+    
+    setPeerReactions(prev => [...prev, reaction]);
+    
+    // Simulate peer reaction
+    setTimeout(() => {
+      const peerReaction = {
+        id: Date.now() + 1,
+        emoji: ['👍', '❤️', '🔥', '💯'][Math.floor(Math.random() * 4)],
+        sender: 'peer',
+        timestamp: new Date().toISOString(),
+        contentIndex: currentContentIndex
+      };
+      setPeerReactions(prev => [...prev, peerReaction]);
+    }, 1000);
+  };
+
+  const startVoiceNote = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error("Voice recording not supported in this browser.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        const voiceNote = {
+          id: Date.now(),
+          blob,
+          duration: Date.now() - recordingStartTime,
+          timestamp: new Date().toISOString(),
+          sender: 'me'
+        };
+        setVoiceNotes(prev => [...prev, voiceNote]);
+        
+        stream.getTracks().forEach(track => track.stop());
+        toast.success("Voice note recorded!");
+      };
+      
+      setIsRecording(true);
+      const recordingStartTime = Date.now();
+      mediaRecorder.start();
+      
+      toast.success("Recording voice note...");
+    } catch (error) {
+      toast.error("Could not access microphone.");
+    }
+  };
+
+  const stopVoiceNote = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const shareScreen = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: true, 
+        audio: true 
+      });
+      setScreenSharing(true);
+      
+      const shareMessage = {
+        id: Date.now(),
+        sender: 'system',
+        text: "Started screen sharing",
+        timestamp: new Date().toISOString(),
+        type: 'system'
+      };
+      setMessages(prev => [...prev, shareMessage]);
+      
+      toast.success("Screen sharing started!");
+      
+      stream.getVideoTracks()[0].onended = () => {
+        setScreenSharing(false);
+        toast.info("Screen sharing ended.");
+      };
+    } catch (error) {
+      toast.error("Could not start screen sharing.");
+    }
+  };
+
+  const formatSessionTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getSessionInsights = () => {
+    return {
+      totalTime: formatSessionTime(sessionTimer),
+      messagesExchanged: messages.length,
+      contentProgress: Math.round(((currentContentIndex + 1) / content.length) * 100),
+      questionsAsked: sharedQuestions.length,
+      notesCreated: collaborativeNotes.split('\n').filter(note => note.trim()).length,
+      reactionsGiven: peerReactions.length
+    };
   };
 
   if (loading) {
@@ -226,16 +728,30 @@ const LevelContentPage = () => {
               Back to Chapters
             </Button>
 
-            {learningMode === 'peer' && peer && (
-              <Button
-                variant="outline"
-                onClick={() => setShowPeerPanel(!showPeerPanel)}
-                className="text-sm"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                {showPeerPanel ? 'Hide Peer Panel' : 'Show Peer Panel'}
-              </Button>
-            )}
+            {learningMode === 'peer' ? (
+              <div className="flex gap-2">
+                {peer && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPeerPanel(!showPeerPanel)}
+                    className="text-sm"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    {showPeerPanel ? 'Hide Peer Panel' : 'Show Peer Panel'}
+                  </Button>
+                )}
+                {!peer && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPeerMatchingModal(true)}
+                    className="text-sm"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Find Learning Partner
+                  </Button>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-4">
@@ -336,66 +852,130 @@ const LevelContentPage = () => {
                     <div className="flex items-center justify-between mt-8 pt-6 border-t">
                       <Button
                         variant="ghost"
-                        onClick={() => handleContentNavigation('prev')}
-                        disabled={currentContentIndex === 0}
+                        onClick={() => learningMode === 'peer' ? syncContentNavigation('prev') : handleContentNavigation('prev')}
+                        disabled={currentContentIndex === 0 || (learningMode === 'peer' && !isSessionLeader)}
                         size="sm"
                       >
                         <ChevronLeft className="w-4 h-4 mr-2" />
                         Previous
+                        {learningMode === 'peer' && !isSessionLeader && (
+                          <span className="ml-1 text-xs text-muted-foreground">(Leader only)</span>
+                        )}
                       </Button>
 
                       <div className="flex gap-2">
                         {content.map((_, index) => (
                           <button
                             key={index}
-                            onClick={() => setCurrentContentIndex(index)}
+                            onClick={() => learningMode === 'peer' && !isSessionLeader ? null : setCurrentContentIndex(index)}
                             className={`w-2 h-2 rounded-full transition-colors ${
                               index === currentContentIndex 
                                 ? 'bg-primary' 
                                 : index < currentContentIndex 
                                   ? 'bg-primary/30' 
                                   : 'bg-muted'
-                            }`}
+                            } ${learningMode === 'peer' && !isSessionLeader ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            title={learningMode === 'peer' && !isSessionLeader ? 'Only session leader can navigate' : `Go to section ${index + 1}`}
                           />
                         ))}
                       </div>
 
                       <Button
                         variant="ghost"
-                        onClick={() => handleContentNavigation('next')}
-                        disabled={currentContentIndex === content.length - 1}
+                        onClick={() => learningMode === 'peer' ? syncContentNavigation('next') : handleContentNavigation('next')}
+                        disabled={currentContentIndex === content.length - 1 || (learningMode === 'peer' && !isSessionLeader)}
                         size="sm"
                       >
                         Next
                         <ChevronRight className="w-4 h-4 ml-2" />
+                        {learningMode === 'peer' && !isSessionLeader && (
+                          <span className="ml-1 text-xs text-muted-foreground">(Leader only)</span>
+                        )}
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4">
-                  {level.testCases?.length > 0 && (
-                    <Button onClick={handleStartTest} size="sm">
-                      <Play className="w-4 h-4 mr-2" />
-                      Take Test
-                    </Button>
+                <div className="space-y-4">
+                  <div className="flex gap-4 flex-wrap">
+                    {level.testCases?.length > 0 && (
+                      <>
+                        {learningMode === 'solo' ? (
+                          <Button onClick={handleStartTest} size="sm">
+                            <Play className="w-4 h-4 mr-2" />
+                            Take Test
+                          </Button>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button onClick={handleStartTest} variant="outline" size="sm">
+                              <Play className="w-4 h-4 mr-2" />
+                              Solo Test
+                            </Button>
+                            <Button onClick={startCollaborativeTest} size="sm" className="bg-purple-600 hover:bg-purple-700">
+                              <Users className="w-4 h-4 mr-2" />
+                              Peer Test
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    
+                    {(!level.testCases?.length || isLevelCompleted) && nextLevel && (
+                      <Button onClick={handleNextLevel} size="sm">
+                        {nextLevel.courseCompleted ? (
+                          <>
+                            <Trophy className="w-4 h-4 mr-2" />
+                            Complete Course
+                          </>
+                        ) : (
+                          <>
+                            Next Level
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Peer Learning Quick Actions */}
+                  {learningMode === 'peer' && (
+                    <div className="flex gap-2 pt-4 border-t">
+                      <Button variant="outline" size="sm" onClick={createStudyQuestion}>
+                        <HelpCircle className="w-4 h-4 mr-2" />
+                        Ask Question
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => addReaction('👍')}>
+                        <ThumbsUp className="w-4 h-4 mr-2" />
+                        Like
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        const note = prompt("Add a collaborative note:");
+                        if (note) addCollaborativeNote(note);
+                      }}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Add Note
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={shareScreen}>
+                        <Monitor className="w-4 h-4 mr-2" />
+                        Share Screen
+                      </Button>
+                    </div>
                   )}
-                  
-                  {(!level.testCases?.length || isLevelCompleted) && nextLevel && (
-                    <Button onClick={handleNextLevel} size="sm">
-                      {nextLevel.courseCompleted ? (
-                        <>
-                          <Trophy className="w-4 h-4 mr-2" />
-                          Complete Course
-                        </>
-                      ) : (
-                        <>
-                          Next Level
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
-                      )}
-                    </Button>
+
+                  {/* Peer Reactions Display */}
+                  {learningMode === 'peer' && peerReactions.length > 0 && (
+                    <div className="flex gap-2 items-center pt-2">
+                      <span className="text-sm text-muted-foreground">Reactions:</span>
+                      {peerReactions
+                        .filter(r => r.contentIndex === currentContentIndex)
+                        .slice(-5)
+                        .map((reaction, index) => (
+                          <span key={index} className="text-lg animate-bounce">
+                            {reaction.emoji}
+                          </span>
+                        ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -416,118 +996,371 @@ const LevelContentPage = () => {
             )}
           </div>
 
-          {/* Peer Learning Panel */}
+          {/* Enhanced Peer Learning Workspace */}
           {learningMode === 'peer' && showPeerPanel && (
             <div className="lg:col-span-1">
-              <Card className="sticky top-4">
-                <CardHeader className="border-b">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Peer Learning</h3>
-                    <Badge variant="secondary" className="text-xs">
-                      <UserPlus className="w-3 h-3 mr-1" />
-                      {peer.name}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Tabs defaultValue="chat" className="w-full">
-                    <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
-                      <TabsTrigger value="chat" className="text-xs">
-                        <MessageSquare className="w-3 h-3 mr-2" />
-                        Chat
-                      </TabsTrigger>
-                      <TabsTrigger value="call" className="text-xs">
-                        <Video className="w-3 h-3 mr-2" />
-                        Call
-                      </TabsTrigger>
-                    </TabsList>
+              <div className="sticky top-4 space-y-4">
+                {/* Session Status Card */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <h3 className="font-medium">Live Session</h3>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {formatSessionTime(sessionTimer)}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-xs">{peer?.avatar}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-muted-foreground">{peer?.name}</span>
+                      {isSessionLeader && (
+                        <Badge variant="outline" className="text-xs">Leader</Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span>Session Progress</span>
+                        <span>{Math.round(((currentContentIndex + 1) / content.length) * 100)}%</span>
+                      </div>
+                      <Progress value={((currentContentIndex + 1) / content.length) * 100} className="h-2" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-muted/50 rounded p-2">
+                        <div className="font-medium">{messages.length}</div>
+                        <div className="text-muted-foreground">Messages</div>
+                      </div>
+                      <div className="bg-muted/50 rounded p-2">
+                        <div className="font-medium">{sharedQuestions.length}</div>
+                        <div className="text-muted-foreground">Questions</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                    <TabsContent value="chat" className="p-4">
-                      <div className="space-y-4">
-                        {/* Messages */}
-                        <div className="space-y-4 h-[400px] overflow-y-auto p-4 bg-muted/50 rounded-lg">
-                          {messages.map((message) => (
-                            <div
-                              key={message.id}
-                              className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-                            >
+                {/* Main Collaboration Panel */}
+                <Card className="h-[600px] flex flex-col">
+                  <CardHeader className="border-b flex-shrink-0">
+                    <Tabs defaultValue="chat" className="w-full">
+                      <TabsList className="w-full grid grid-cols-4 rounded-none border-b">
+                        <TabsTrigger value="chat" className="text-xs">
+                          <MessageSquare className="w-3 h-3 mr-1" />
+                          Chat
+                        </TabsTrigger>
+                        <TabsTrigger value="video" className="text-xs">
+                          <Video className="w-3 h-3 mr-1" />
+                          Video
+                        </TabsTrigger>
+                        <TabsTrigger value="notes" className="text-xs">
+                          <FileText className="w-3 h-3 mr-1" />
+                          Notes
+                        </TabsTrigger>
+                        <TabsTrigger value="code" className="text-xs">
+                          <Code className="w-3 h-3 mr-1" />
+                          Code
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="chat" className="mt-0 flex-1 flex flex-col">
+                        <div className="flex-1 flex flex-col p-4">
+                          {/* Messages */}
+                          <div className="flex-1 space-y-3 overflow-y-auto mb-4">
+                            {messages.map((message) => (
                               <div
-                                className={`max-w-[80%] p-3 rounded-lg text-sm ${
-                                  message.sender === 'me'
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-muted'
-                                }`}
+                                key={message.id}
+                                className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
                               >
-                                <p>{message.text}</p>
-                                <span className="text-xs opacity-70 mt-1 block">
-                                  {new Date(message.timestamp).toLocaleTimeString()}
-                                </span>
+                                <div
+                                  className={`max-w-[85%] p-3 rounded-lg text-sm ${
+                                    message.sender === 'me'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : message.sender === 'system'
+                                      ? 'bg-blue-100 text-blue-800 text-center italic'
+                                      : message.type === 'question'
+                                      ? 'bg-yellow-100 text-yellow-800 border-l-4 border-yellow-400'
+                                      : message.type === 'invitation'
+                                      ? 'bg-purple-100 text-purple-800 border-l-4 border-purple-400'
+                                      : 'bg-muted'
+                                  }`}
+                                >
+                                  <p>{message.text}</p>
+                                  <span className="text-xs opacity-70 mt-1 block">
+                                    {new Date(message.timestamp).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            <div ref={messagesEndRef} />
+                          </div>
+
+                          {/* Message Input */}
+                          <div className="flex gap-2">
+                            <Textarea
+                              value={newMessage}
+                              onChange={(e) => setNewMessage(e.target.value)}
+                              placeholder="Type your message..."
+                              className="text-sm resize-none"
+                              rows={2}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSendMessage();
+                                }
+                              }}
+                            />
+                            <div className="flex flex-col gap-1">
+                              <Button size="icon" onClick={handleSendMessage} className="h-8 w-8">
+                                <Send className="w-3 h-3" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="outline" 
+                                onClick={isRecording ? stopVoiceNote : startVoiceNote}
+                                className={`h-8 w-8 ${isRecording ? 'bg-red-100 text-red-600' : ''}`}
+                              >
+                                <Mic className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="video" className="mt-0 flex-1 flex flex-col">
+                        <div className="p-4 space-y-4">
+                          {/* Video Call Controls */}
+                          <div className="flex justify-center gap-2">
+                            <Button
+                              variant={isAudioEnabled ? "default" : "outline"}
+                              size="sm"
+                              onClick={toggleAudio}
+                            >
+                              {isAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                            </Button>
+                            <Button
+                              variant={isVideoEnabled ? "default" : "outline"}
+                              size="sm"
+                              onClick={toggleVideo}
+                            >
+                              {isVideoEnabled ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
+                            </Button>
+                            <Button
+                              variant={screenSharing ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={shareScreen}
+                            >
+                              <Monitor className="w-4 h-4" />
+                            </Button>
+                          </div>
+
+                          {/* Video Preview */}
+                          <div className="aspect-video bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center border-2 border-dashed border-muted">
+                            {isVideoEnabled ? (
+                              <div className="text-center space-y-2">
+                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                                  <Camera className="w-6 h-6 text-green-600" />
+                                </div>
+                                <p className="text-sm text-muted-foreground">Video call active</p>
+                              </div>
+                            ) : (
+                              <div className="text-center space-y-2">
+                                <CameraOff className="w-8 h-8 text-muted-foreground mx-auto" />
+                                <p className="text-sm text-muted-foreground">Camera is off</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Peer Video Status */}
+                          <div className="bg-muted/50 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs">{peer?.avatar}</AvatarFallback>
+                              </Avatar>
+                              <span>{peer?.name}</span>
+                              <div className="flex gap-1 ml-auto">
+                                <div className={`w-2 h-2 rounded-full ${isAudioEnabled ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                <div className={`w-2 h-2 rounded-full ${isVideoEnabled ? 'bg-green-400' : 'bg-red-400'}`}></div>
                               </div>
                             </div>
-                          ))}
+                          </div>
                         </div>
+                      </TabsContent>
 
-                        {/* Message Input */}
-                        <div className="flex gap-2">
-                          <Textarea
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Type your message..."
-                            className="text-sm"
-                            rows={1}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage();
-                              }
-                            }}
-                          />
-                          <Button size="icon" onClick={handleSendMessage}>
-                            <Send className="w-4 h-4" />
-                          </Button>
+                      <TabsContent value="notes" className="mt-0 flex-1 flex flex-col">
+                        <div className="p-4 flex-1 flex flex-col">
+                          <div className="flex-1">
+                            <Textarea
+                              value={collaborativeNotes}
+                              onChange={(e) => setCollaborativeNotes(e.target.value)}
+                              placeholder="Collaborative notes will appear here as you and your peer add them..."
+                              className="h-full resize-none text-sm"
+                            />
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <Button size="sm" variant="outline" onClick={() => {
+                              const note = prompt("Add a note:");
+                              if (note) addCollaborativeNote(note);
+                            }}>
+                              <Pencil className="w-3 h-3 mr-1" />
+                              Add Note
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              <Download className="w-3 h-3 mr-1" />
+                              Export
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </TabsContent>
+                      </TabsContent>
 
-                    <TabsContent value="call" className="p-4">
-                      <div className="space-y-4">
-                        {/* Video Call Controls */}
-                        <div className="flex justify-center gap-4">
-                          <Button
-                            variant={isAudioEnabled ? "default" : "outline"}
-                            size="icon"
-                            onClick={toggleAudio}
-                          >
-                            <Mic className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant={isVideoEnabled ? "default" : "outline"}
-                            size="icon"
-                            onClick={toggleVideo}
-                          >
-                            <Video className="w-4 h-4" />
-                          </Button>
-                        </div>
-
-                        {/* Video Preview */}
-                        <div className="aspect-video bg-muted/50 rounded-lg flex items-center justify-center">
-                          {isVideoEnabled ? (
-                            <p className="text-sm text-muted-foreground">Video preview</p>
-                          ) : (
-                            <div className="text-center space-y-2">
-                              <Video className="w-8 h-8 text-muted-foreground mx-auto" />
-                              <p className="text-sm text-muted-foreground">Camera is off</p>
+                      <TabsContent value="code" className="mt-0 flex-1 flex flex-col">
+                        <div className="p-4 flex-1 flex flex-col">
+                          <div className="mb-2 flex justify-between items-center">
+                            <span className="text-sm font-medium">Shared Code Editor</span>
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" onClick={() => {
+                                navigator.clipboard.writeText(sharedCodeEditor);
+                                toast.success("Code copied!");
+                              }}>
+                                <Copy className="w-3 h-3" />
+                              </Button>
                             </div>
-                          )}
+                          </div>
+                          <div className="flex-1 border rounded-lg overflow-hidden">
+                            <Editor
+                              height="300px"
+                              defaultLanguage="python"
+                              value={sharedCodeEditor}
+                              onChange={(value) => setSharedCodeEditor(value || '')}
+                              theme="vs-light"
+                              options={{
+                                minimap: { enabled: false },
+                                fontSize: 12,
+                                lineNumbers: 'on',
+                                scrollBeyondLastLine: false,
+                                automaticLayout: true
+                              }}
+                            />
+                          </div>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            Live collaborative coding • Peer cursor: Line {peerCursor.line}
+                          </div>
                         </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardHeader>
+                </Card>
+
+                {/* Session Goals */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <h4 className="font-medium text-sm">Session Goals</h4>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {sessionGoals.map((goal, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm">
+                        <input 
+                          type="checkbox" 
+                          checked={completedGoals.includes(index)}
+                          onChange={() => {
+                            if (completedGoals.includes(index)) {
+                              setCompletedGoals(prev => prev.filter(i => i !== index));
+                            } else {
+                              setCompletedGoals(prev => [...prev, index]);
+                              toast.success("Goal completed! 🎉");
+                            }
+                          }}
+                          className="rounded" 
+                        />
+                        <span className={completedGoals.includes(index) ? 'line-through text-muted-foreground' : ''}>
+                          {goal}
+                        </span>
                       </div>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Peer Test Invitation Modal */}
+        {showPeerTestModal && peerTestInvitation && (
+          <Dialog open={showPeerTestModal} onOpenChange={setShowPeerTestModal}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  Collaborative Test Invitation
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto">
+                    <Code className="w-8 h-8 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold">Ready to code together?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {peer?.name} has invited you to take the test collaboratively. 
+                    You'll work together to solve the coding challenges!
+                  </p>
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Test Cases:</span>
+                    <span className="font-medium">{level.testCases?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Mode:</span>
+                    <span className="font-medium">Collaborative Coding</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Partner:</span>
+                    <span className="font-medium">{peer?.name}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setShowPeerTestModal(false)}
+                  >
+                    <XIcon className="w-4 h-4 mr-2" />
+                    Decline
+                  </Button>
+                  <Button 
+                    className="flex-1 bg-purple-600 hover:bg-purple-700"
+                    onClick={acceptPeerTest}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Accept & Start
+                  </Button>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">
+                    You can chat, share screens, and code together in real-time!
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Peer Matching Modal */}
+        <PeerMatchingModal
+          isOpen={showPeerMatchingModal}
+          onClose={() => setShowPeerMatchingModal(false)}
+          courseId={courseId}
+          chapterId={chapterId}
+          levelId={levelId}
+          courseTitle={course?.title}
+        />
       </div>
     </div>
   );

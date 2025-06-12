@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import userProgressRoutes from './routes/userProgressRoutes.js';
 import communityPostRoutes from './routes/communityPostRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
+import peerLearningRoutes from './routes/peerLearningRoutes.js';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/user-progress', userProgressRoutes);
 app.use('/api/post', communityPostRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/peer-learning', peerLearningRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
