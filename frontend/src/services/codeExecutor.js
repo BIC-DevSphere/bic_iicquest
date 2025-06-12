@@ -203,7 +203,6 @@ export const testCode = async (userCode, testCases, language = 'python') => {
   return results;
 };
 
-// Alternative: Use a free service like Piston API
 const PISTON_API_URL = 'https://emkc.org/api/v2/piston';
 
 export const executeCodeWithPiston = async (code, language = 'python', version = '3.10.0') => {
@@ -250,7 +249,6 @@ export const executeCodeWithPiston = async (code, language = 'python', version =
   }
 };
 
-// Test code with Piston API (free alternative)
 export const testCodeWithPiston = async (userCode, testCases, language = 'python') => {
   const results = [];
   
@@ -278,9 +276,7 @@ export const testCodeWithPiston = async (userCode, testCases, language = 'python
       let actualOutput = executionResult.output.trim();
       
       if (testCase.testCode.includes('type(') && testCase.testCode.includes('==')) {
-        // For type checking tests like "type(age) == int and age == 25"
-        // We need to check if the code has the right variable with right type and value
-        
+
         // Extract variable name from test code
         const varMatch = testCase.testCode.match(/type\((\w+)\)/);
         const expectedValue = testCase.expectedOutput;
